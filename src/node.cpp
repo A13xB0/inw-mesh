@@ -349,13 +349,21 @@ static void decodeLpp(const uint8_t* d, int len, char* out, size_t cap) {
     if (w < cap) w += snprintf(out + w, cap - w, fmt, v);
   };
   while (i + 2 <= len) {
-    const uint8_t type = d[i + 1];
+    const uint8_t ch = d[i], type = d[i + 1];
     i += 2;
     switch (type) {
       case 116: if (i + 2 > len) return; add("battery %.2f V\n", ((d[i] << 8) | d[i + 1]) / 100.0); i += 2; break;
-      case 103: if (i + 2 > len) return; add("temp %.1f C\n", (int16_t)((d[i] << 8) | d[i + 1]) / 10.0); i += 2; break;
+      case 103: {
+        // Channel 1 is the node itself, where MeshCore reports its chip's temperature.
+        if (i + 2 > len) return;
+        const double c = (int16_t)((d[i] << 8) | d[i + 1]) / 10.0;
+        if (ui_settings.miles) add(ch == 1 ? "board temp %.0f F\n" : "temp %.1f F\n", c * 1.8 + 32);
+        else add(ch == 1 ? "board temp %.0f C\n" : "temp %.1f C\n", c);
+        i += 2; break;
+      }
       case 104: if (i + 1 > len) return; add("humidity %.0f %%\n", d[i] / 2.0); i += 1; break;
       case 115: if (i + 2 > len) return; add("pressure %.1f hPa\n", ((d[i] << 8) | d[i + 1]) / 10.0); i += 2; break;
+      case 101: if (i + 2 > len) return; add("light %.0f lux\n", (double)((d[i] << 8) | d[i + 1])); i += 2; break;
       case 117: if (i + 2 > len) return; add("current %.3f A\n", ((d[i] << 8) | d[i + 1]) / 1000.0); i += 2; break;
       case 128: if (i + 2 > len) return; add("power %.0f W\n", (double)((d[i] << 8) | d[i + 1])); i += 2; break;
       case 2:   if (i + 2 > len) return; add("analog %.2f\n", (int16_t)((d[i] << 8) | d[i + 1]) / 100.0); i += 2; break;

@@ -42,6 +42,11 @@
 #include "netwifi.h"
 #include "fx.h"
 #include "regional.h"
+#include "extport.h"
+#if INW_DEV
+#include <CayenneLPP.h>
+namespace ext { void drawPage(Canvas& g, int down); void fake(); }
+#endif
 
 // Mesh callbacks (decrypt, verify, then our history write) run on the loop task;
 // give it room rather than finding the edge of the default 8 KB in the field.
@@ -451,6 +456,7 @@ static void alert(const char* title, const char* text, AlertKind kind, bool sile
   if (ui_settings.vibrate) haptic.pattern(vibe.seq, vibe.n);
   if (ui_settings.sound) jingle.play(sound);
   if (ui_settings.kbFlash) { keyboard.setBacklight(255); s_kbFlashUntil = millis() + 2500; }
+  ext::alert();
 }
 
 static void onNodeEvent(NodeEvent e, const void* arg) {
@@ -545,6 +551,7 @@ static void takeScreenshot() {
 //   theme N     switch theme
 //   key C       press a key (\n for enter)
 //   home, lock, wheel +N / -N, press
+//   ext         what is plugged into the top header, and what IO9 is doing
 //   dfu         restart into the ROM's USB download mode, ready for esptool or
 //               the web installer (flash with --before no_reset)
 
@@ -581,7 +588,7 @@ static void usbCommands() {
     // screen, or "shot" to read what's on it. While locked (or dark, which locks)
     // only commands that don't reveal or unlock anything are accepted.
     const bool locked = dimmer.asleep() || (nav.top() && nav.top()->isLock());
-    if (locked && (!strcmp(line, "shot") || !strcmp(line, "home") || !strcmp(line, "press") ||
+    if (locked && (!strcmp(line, "shot") || !strcmp(line, "home") || !strcmp(line, "press") || !strcmp(line, "extpage") ||
                    !strncmp(line, "key ", 4) || !strncmp(line, "wheel ", 6) || !strncmp(line, "theme ", 6))) {
       Serial.println("[usb] pager is locked: unlock it on the device first");
       continue;
@@ -694,6 +701,34 @@ static void usbCommands() {
       Serial.write((const uint8_t*)buf.getBuffer(), L::W * L::H * 2);
       Serial.flush();
     };
+    // "io9 N": the IO9 mode for now (not saved), then an alert, for checking the pin.
+    if (!strncmp(line, "io9 ", 4)) {
+      ui_settings.io9Mode = atoi(line + 4) % 3;
+      ext::applyPin();
+      ext::alert();
+      Serial.printf("[ext] io9 mode %u\n", ui_settings.io9Mode);
+      continue;
+    }
+    // "extfake": made-up sensor readings, and the telemetry they would send.
+    if (!strcmp(line, "extfake")) {
+      ext::fake();
+      CayenneLPP lpp(64);
+      ext::telemetry(lpp);
+      Serial.print("[ext] lpp");
+      for (uint8_t i = 0; i < lpp.getSize(); i++) Serial.printf(" %02X", lpp.getBuffer()[i]);
+      Serial.println();
+      continue;
+    }
+    // "extshot N": the Top header page (Tools), N rows down, as a screenshot.
+    if (!strncmp(line, "extshot", 7)) {
+      Canvas& g = nav.canvas();
+      g.fillScreen(theme.bg);
+      drawStatusBar(g, theme);
+      ext::drawPage(g, atoi(line + 7));
+      streamShot(display, g);
+      nav.invalidate();
+      continue;
+    }
     if (!strncmp(line, "gbframe ", 8)) {
       Canvas& g = nav.canvas();
       goodbyeFrame(g, 1234, atoi(line + 8));
@@ -902,6 +937,8 @@ static void usbCommands() {
                     g_node ? g_node->getNumContacts() : -1);
       continue;
     }
+    // What is plugged into the top header, and what IO9 is doing.
+    if (!strcmp(line, "ext")) { ext::report(); continue; }
     dimmer.note();
     if (!strcmp(line, "stores")) {
       storeReport();
@@ -936,6 +973,8 @@ static void usbCommands() {
       nav.press();
     } else if (!strcmp(line, "dfu")) {
       app::rebootToFlashMode();
+    } else if (!strcmp(line, "extpage")) {
+      ext::openPage();
     }
     nav.invalidate();
   }
@@ -1331,6 +1370,7 @@ void setup() {
     bootStep("mesh node", true, info);
     logs.add(LOG_INFO, "%s", info);
   }
+  ext::begin();                                  // sensors on the top header, IO9
   wifi::begin();
   s_bootStep = BOOT_STEPS - 1;
   bootStep("ready", true);
@@ -1526,6 +1566,7 @@ void loop() {
   if (s_hizUntil && (int32_t)(millis() - s_hizUntil) > 0) { s_hizUntil = 0; battery.setHiZ(false); Serial.println("[batt] charger input back on"); }
   power::tick();
   ota::tick();
+  ext::tick();
   nodeLoop();
   lap(3);
   nav.tick();

@@ -6,6 +6,7 @@
 #include "logstore.h"
 #include "fieldtools.h"
 #include "fx.h"
+#include "extport.h"
 #include <SPIFFS.h>
 #include <SD.h>
 
@@ -251,6 +252,7 @@ void app::openTools() {
   m->action("packet sniffer", [] { packetLogPage(); });
   m->header("device");
   m->action("gps", [] { gpsPage(); });
+  m->action("top header: sensors, IO9", [] { ext::openPage(); });
   m->action("device info", [] { deviceInfoPage(); });
   m->action("log", [] { logsPage(); });
   m->action("test notification", [] { app::testNotify(); });

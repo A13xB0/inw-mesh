@@ -86,6 +86,7 @@ struct UiSettings {
   // Shown unless turned off, and stored that way round on purpose: fields added here
   // land in what older builds saved as struct padding, which reads back as 0.
   bool     hideHashBytes = false;     // chat: leave the hash size ("2B") off the hop count
+  uint8_t  io9Mode       = 0;         // top header IO9: 0 untouched, 1 flash on messages, 2 on while unread
 
   void load();
   void save();

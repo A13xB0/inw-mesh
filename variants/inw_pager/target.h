@@ -29,9 +29,11 @@ public:
   void setQuiet(uint32_t t) { _base.setCurrentTime(t); }
 };
 
-// No environment sensors on this board. Location comes from our GPS driver,
-// written into node_lat/node_lon by the app; telemetry reports it when asked
-// and permitted.
+namespace ext { void telemetry(CayenneLPP& lpp); }   // src/extport.cpp
+
+// No environment sensors on the board itself, only what is plugged into the top
+// header (src/extport.cpp). Location comes from our GPS driver, written into
+// node_lat/node_lon by the app; telemetry reports it when asked and permitted.
 class InwSensors : public SensorManager {
 public:
   bool hasFix = false;
@@ -39,6 +41,7 @@ public:
     if ((perms & TELEM_PERM_LOCATION) && (node_lat != 0 || node_lon != 0)) {
       telemetry.addGPS(TELEM_CHANNEL_SELF, (float)node_lat, (float)node_lon, (float)node_altitude);
     }
+    if (perms & TELEM_PERM_ENVIRONMENT) ext::telemetry(telemetry);
     return true;
   }
 };
