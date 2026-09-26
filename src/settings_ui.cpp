@@ -605,6 +605,8 @@ static void messagesMenu() {
   tg(*m, "retry direct messages", &ui_settings.autoRetry);
   tg(*m, "flood on last retry", &ui_settings.autoResetPath);
   tg(*m, "show hops", &ui_settings.showHops);
+  m->toggle("  with repeater id size (2B)", [] { return !ui_settings.hideHashBytes; },
+            [] { ui_settings.hideHashBytes = !ui_settings.hideHashBytes; markUiDirty(); });
   tg(*m, "show signal (snr)", &ui_settings.showSnr);
   tg(*m, "compact (irc style)", &ui_settings.compactChat);
   tg(*m, "ignore 1-character posts", &ui_settings.ignoreOneChar);

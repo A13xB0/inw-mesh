@@ -83,6 +83,9 @@ struct UiSettings {
   // where it is (regional.h)
   uint8_t  tzZone        = 0;         // 0: the fixed tzMinutes offset; else 1 + index into regional::ZONES
   uint8_t  setupDone     = 0;         // the first-start setup (region, time zone, units) has been through
+  // Shown unless turned off, and stored that way round on purpose: fields added here
+  // land in what older builds saved as struct padding, which reads back as 0.
+  bool     hideHashBytes = false;     // chat: leave the hash size ("2B") off the hop count
 
   void load();
   void save();

@@ -400,7 +400,7 @@ private:
         if (m.hops == 0xFF || m.hops == 0) w += snprintf(out + w, cap - w, "  direct");
         else {
           // With how many bytes of each repeater's hash it travelled (1-3), where known.
-          const Route* rt = history.route(m);
+          const Route* rt = ui_settings.hideHashBytes ? nullptr : history.route(m);
           if (rt) w += snprintf(out + w, cap - w, "  %uh %uB", m.hops, rt->sz);
           else w += snprintf(out + w, cap - w, "  %uh", m.hops);
         }
