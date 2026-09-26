@@ -398,7 +398,12 @@ private:
     } else {
       if (ui_settings.showHops && w < cap) {
         if (m.hops == 0xFF || m.hops == 0) w += snprintf(out + w, cap - w, "  direct");
-        else w += snprintf(out + w, cap - w, "  %uh", m.hops);
+        else {
+          // With how many bytes of each repeater's hash it travelled (1-3), where known.
+          const Route* rt = history.route(m);
+          if (rt) w += snprintf(out + w, cap - w, "  %uh %uB", m.hops, rt->sz);
+          else w += snprintf(out + w, cap - w, "  %uh", m.hops);
+        }
       }
       if (ui_settings.showSnr && w < cap) snprintf(out + w, cap - w, "  %.1fdB", m.snr4 / 4.0);
     }

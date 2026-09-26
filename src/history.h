@@ -86,6 +86,7 @@ public:
   void setRoute(uint32_t id, const uint8_t* hashes, uint8_t sz, uint8_t n);
   void heardVia(uint32_t id, const uint8_t* hashes, uint8_t sz, uint8_t n);
   const Route* route(uint32_t id);
+  const Route* route(const HistMsg& m) { const Route* r = routeOf(&m); return r && r->n ? r : nullptr; }   // no search
 
   // Oldest first. Callers that walk a whole conversation should use collect().
   uint16_t collect(const ConvKey& k, uint32_t* ids, uint16_t max);
