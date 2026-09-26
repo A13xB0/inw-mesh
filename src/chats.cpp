@@ -530,6 +530,28 @@ static void openQuickReplies(ThreadView* tv) {
   nav.push(m);
 }
 
+// A repeater in a path, from its path hash: the first sz bytes of its key, as many
+// as the mesh uses. Only repeaters and rooms are looked at (nothing else repeats).
+// Two bytes pick out one repeater; one byte can fit several in a big contact list,
+// so say so rather than guess.
+static String repeaterName(const uint8_t* h, uint8_t sz) {
+  char hex[8] = "", b[56];
+  for (uint8_t i = 0; i < sz && i < 3; i++) snprintf(hex + i * 2, 3, "%02x", h[i]);
+  if (!g_node) return String(hex);
+  char first[32] = "";
+  int n = 0;
+  ContactsIterator it = g_node->startContactsIterator();
+  ContactInfo c;
+  while (it.hasNext(g_node, c)) {
+    if ((c.type != ADV_TYPE_REPEATER && c.type != ADV_TYPE_ROOM) || memcmp(c.id.pub_key, h, sz)) continue;
+    if (!n++) strlcpy(first, c.name, sizeof(first));
+  }
+  if (!n) snprintf(b, sizeof(b), "%s  (unknown)", hex);
+  else if (n == 1) snprintf(b, sizeof(b), "%s  %s", hex, first);
+  else snprintf(b, sizeof(b), "%s  %s or %d others", hex, first, n - 1);
+  return String(b);
+}
+
 static void openMessageActions(ThreadView* tv, uint32_t id) {
   HistMsg* msg = history.find(id);
   if (!msg) return;
@@ -565,17 +587,16 @@ static void openMessageActions(ThreadView* tv, uint32_t id) {
   if (!out) {
     m->info("route", [id]() -> String { HistMsg* x = history.find(id); if (!x) return String("");
       return x->hops == 0xFF || !x->hops ? String("direct") : String(x->hops) + " hops"; });
-    // One row per repeater that carried it, named from contacts where we know them.
+    // One row per repeater that carried it, named from contacts where we know them:
+    // by full hash where it was kept, else by the one byte older messages have.
+    const Route* rt = history.route(id);
     HistMsg* msg2 = history.find(id);
-    for (uint8_t h = 0; msg2 && h < msg2->path_len; h++) {
-      const uint8_t hash = msg2->path[h];
+    const uint8_t hops = rt ? rt->n : msg2 ? msg2->path_len : 0;
+    for (uint8_t h = 0; h < hops; h++) {
       char label[12];
-      snprintf(label, sizeof(label), "  hop %u", h + 1);
-      m->info(label, [hash]() -> String {
-        ContactInfo* c = g_node ? g_node->contactByPrefix(&hash, 1) : nullptr;
-        char b[40];
-        snprintf(b, sizeof(b), "%02x  %s", hash, c && c->name[0] ? c->name : "(unknown)");
-        return String(b); });
+      snprintf(label, sizeof(label), "  hop %u", (unsigned)(h + 1));
+      const String name = rt ? repeaterName(rt->h + h * rt->sz, rt->sz) : repeaterName(msg2->path + h, 1);
+      m->info(label, [name]() -> String { return name; });
     }
     m->info("signal", [id]() -> String { HistMsg* x = history.find(id); return String(x ? x->snr4 / 4.0 : 0, 1) + " dB SNR"; });
   } else {
@@ -583,6 +604,12 @@ static void openMessageActions(ThreadView* tv, uint32_t id) {
       static const char* S[] = {"received", "sending", "sent", "delivered", "failed"};
       return String(S[x->status % 5]); });
     m->info("repeats heard", [id]() -> String { HistMsg* x = history.find(id); return String(x ? x->repeats : 0); });
+    // Every repeater seen carrying it, in the copies that came back.
+    if (const Route* rt = history.route(id))
+      for (uint8_t h = 0; h < rt->n; h++) {
+        const String name = repeaterName(rt->h + h * rt->sz, rt->sz);
+        m->info(h ? "" : "  repeated by", [name]() -> String { return name; });
+      }
     m->info("attempts", [id]() -> String { HistMsg* x = history.find(id); return String(x ? max<int>(1, x->attempts) : 0); });
     m->info("round trip", [id]() -> String { HistMsg* x = history.find(id);
       return x && x->rtt10 ? String(x->rtt10 * 10) + " ms" : String("-"); });

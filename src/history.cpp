@@ -5,6 +5,10 @@ History history;
 
 static const char* LOG_PATH   = "/hist.log";
 static const char* READS_PATH = "/hist_read.bin";
+// Routes (History::route) by message id: {id, sz, n, n * sz hash bytes} records. A file
+// of its own rather than a new kind of record in the log, which older firmware would
+// read as a torn tail and stop at, losing every message after it.
+static const char* ROUTE_PATH = "/hist_route.bin";
 
 struct StatusRec { uint32_t id; uint8_t status, attempts, repeats; uint16_t rtt10; } __attribute__((packed));
 
@@ -12,8 +16,10 @@ bool History::begin() {
   _ring = (HistMsg*)heap_caps_calloc(CAP, sizeof(HistMsg), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (!_ring) _ring = (HistMsg*)calloc(CAP, sizeof(HistMsg));
   if (!_ring) return false;
+  _routes = (Route*)heap_caps_calloc(CAP, sizeof(Route), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   loadLog();
   loadReads();
+  loadRoutes();
   return true;
 }
 
@@ -122,6 +128,7 @@ uint32_t History::add(const ConvKey& k, uint8_t flags, uint8_t status, const cha
   strlcpy(m.text, text ? text : "", sizeof(m.text));
   m.path_len = path && path_len ? min<uint8_t>(path_len, sizeof(m.path)) : 0;
   if (m.path_len) memcpy(m.path, path, m.path_len);
+  if (Route* r = routeOf(&m)) r->n = 0;
   _head = (_head + 1) % CAP;
   if (_count < CAP) _count++;
   appendRecord('N', &m, sizeof(m));    // 'M' was the layout before paths
@@ -153,6 +160,94 @@ void History::bumpRepeat(uint32_t id) {
   if (m->status == ST_SENDING) m->status = ST_SENT;
   writeStatus(*m);
   gen++;
+}
+
+static bool sameHash(const Route& r, const uint8_t* h) {
+  for (uint8_t i = 0; i < r.n; i++) if (!memcmp(r.h + i * r.sz, h, r.sz)) return true;
+  return false;
+}
+
+void History::setRoute(uint32_t id, const uint8_t* hashes, uint8_t sz, uint8_t n) {
+  HistMsg* m = find(id);
+  Route* r = m ? routeOf(m) : nullptr;
+  if (!r || !n || sz < 1 || sz > 3) return;
+  r->sz = sz;
+  r->n = min<uint8_t>(n, Route::MAX);
+  memcpy(r->h, hashes, r->n * sz);
+  saveRoutes();
+}
+
+void History::heardVia(uint32_t id, const uint8_t* hashes, uint8_t sz, uint8_t n) {
+  HistMsg* m = find(id);
+  Route* r = m && (m->flags & HF_OUT) ? routeOf(m) : nullptr;
+  if (!r || sz < 1 || sz > 3) return;
+  if (r->n && r->sz != sz) r->n = 0;          // the mesh changed hash size: start over
+  r->sz = sz;
+  bool changed = false;
+  for (uint8_t i = 0; i < n && r->n < Route::MAX; i++) {
+    if (sameHash(*r, hashes + i * sz)) continue;
+    memcpy(r->h + r->n * sz, hashes + i * sz, sz);
+    r->n++;
+    changed = true;
+  }
+  if (!changed) return;
+  gen++;
+  saveRoutes();
+}
+
+const Route* History::route(uint32_t id) {
+  HistMsg* m = find(id);
+  const Route* r = m ? routeOf(m) : nullptr;
+  return r && r->n ? r : nullptr;
+}
+
+// The whole file, rebuilt from history: queued as a replace, which the background
+// writer merges with any still waiting and writes with the screen off. (An append
+// would share the log's one append buffer and, while that's busy, write on the
+// spot: seconds on this SPIFFS.) Only messages still in history are kept.
+void History::saveRoutes() {
+  if (!_routes) return;
+  static uint8_t* buf = nullptr;
+  static size_t cap = 0;
+  size_t len = 0;
+  for (uint16_t i = 0; i < _count; i++) {
+    const HistMsg* m = at(i);
+    const Route* r = routeOf(m);
+    if (!r->n) continue;
+    const size_t need = 6 + r->n * r->sz;
+    if (len + need > cap) {
+      size_t nc = cap ? cap * 2 : 4096;
+      while (nc < len + need) nc *= 2;
+      uint8_t* nb = (uint8_t*)ps_realloc(buf, nc);
+      if (!nb) return;
+      buf = nb; cap = nc;
+    }
+    memcpy(buf + len, &m->id, 4);
+    buf[len + 4] = r->sz;
+    buf[len + 5] = r->n;
+    memcpy(buf + len + 6, r->h, r->n * r->sz);
+    len += need;
+  }
+  inwQueueReplace(ROUTE_PATH, buf, len);
+}
+
+void History::loadRoutes() {
+  if (!_routes) return;
+  File f = SPIFFS.open(ROUTE_PATH, FILE_READ);
+  if (!f) return;
+  uint8_t hd[6], h[Route::MAX * 3];
+  while (f.read(hd, 6) == 6) {
+    uint32_t id;
+    memcpy(&id, hd, 4);
+    const uint8_t sz = hd[4], n = hd[5];
+    if (sz < 1 || sz > 3 || n > Route::MAX || f.read(h, n * sz) != (int)(n * sz)) break;
+    HistMsg* m = find(id);
+    if (!m) continue;
+    Route* r = routeOf(m);
+    r->sz = sz; r->n = n;
+    memcpy(r->h, h, n * sz);
+  }
+  f.close();
 }
 
 uint16_t History::collect(const ConvKey& k, uint32_t* ids, uint16_t max) {

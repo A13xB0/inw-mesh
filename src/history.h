@@ -52,10 +52,21 @@ struct HistMsg {
   uint32_t ts;            // epoch, our clock at receipt / send
   char     sender[24];
   char     text[160];
-  // Which repeaters carried it: one hash byte per hop, oldest first. Only for
-  // messages received since this was added; 0 on everything else.
+  // Which repeaters carried it, the first byte of each one's key, oldest hop first.
+  // Only for received messages; the full hashes are in History::route().
   uint8_t  path[8];
   uint8_t  path_len;
+};
+
+// The repeaters behind a message, each by its full path hash (the first 1-3 bytes of
+// its key, however many the mesh is using): 2 bytes pick out one repeater, where 1
+// byte fits several in a big contact list. Received: the hops it came through, oldest
+// first. Ours: every repeater seen in the copies of it heard coming back.
+struct Route {
+  static constexpr uint8_t MAX = 16;
+  uint8_t sz;                 // bytes per hash
+  uint8_t n;
+  uint8_t h[MAX * 3];         // hash i at h + i * sz
 };
 
 class History {
@@ -70,6 +81,11 @@ public:
   HistMsg* find(uint32_t id);
   void setStatus(uint32_t id, uint8_t st, uint8_t attempts = 0xFF, uint16_t rtt10 = 0);
   void bumpRepeat(uint32_t id);
+  // A received message's hops, or a copy of our post heard coming back through these
+  // repeaters: n hashes of sz bytes each, in path order.
+  void setRoute(uint32_t id, const uint8_t* hashes, uint8_t sz, uint8_t n);
+  void heardVia(uint32_t id, const uint8_t* hashes, uint8_t sz, uint8_t n);
+  const Route* route(uint32_t id);
 
   // Oldest first. Callers that walk a whole conversation should use collect().
   uint16_t collect(const ConvKey& k, uint32_t* ids, uint16_t max);
@@ -97,6 +113,10 @@ private:
   void compact();
   void saveReads();
   void loadReads();
+  void loadRoutes();
+  void saveRoutes();
+  Route* routeOf(const HistMsg* m) { return _routes ? &_routes[m - _ring] : nullptr; }
+  Route* _routes = nullptr;   // beside _ring, same index
 
   HistMsg* _ring = nullptr;
   uint16_t _head = 0, _count = 0;

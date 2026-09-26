@@ -56,6 +56,13 @@ static uint8_t pathOf(mesh::Packet* pkt, uint8_t* out, uint8_t cap) {
   return n;
 }
 
+// The same repeaters in full: each one's whole path hash, however many bytes the mesh
+// uses (History::route), so two repeaters sharing a first byte can be told apart.
+static void keepRoute(uint32_t id, mesh::Packet* pkt) {
+  if (id && pkt->isRouteFlood() && pkt->getPathHashCount())
+    history.setRoute(id, pkt->path, pkt->getPathHashSize(), pkt->getPathHashCount());
+}
+
 static bool mentions(const char* text, const char* me) {
   if (!me || !*me) return false;
   char tag[40];
@@ -202,8 +209,8 @@ void InwNode::onMessageRecv(const ContactInfo& from, mesh::Packet* pkt, uint32_t
   if (room) flags |= HF_ROOM;
   uint8_t hp[8];
   const uint8_t hn = pathOf(pkt, hp, sizeof(hp));
-  history.add(ConvKey::contact(from.id.pub_key), flags, ST_RECV, from.name, text,
-              getRTCClock()->getCurrentTime(), hopsOf(pkt), (int8_t)(pkt->getSNR() * 4), hp, hn);
+  keepRoute(history.add(ConvKey::contact(from.id.pub_key), flags, ST_RECV, from.name, text,
+                        getRTCClock()->getCurrentTime(), hopsOf(pkt), (int8_t)(pkt->getSNR() * 4), hp, hn), pkt);
   emit(room ? NodeEvent::RoomMsg : NodeEvent::DirectMsg, &from);
 }
 
@@ -221,8 +228,8 @@ void InwNode::onSignedMessageRecv(const ContactInfo& from, mesh::Packet* pkt, ui
   if (!memcmp(sender_prefix, self_id.pub_key, 4)) flags |= HF_OUT;
   uint8_t hp[8];
   const uint8_t hn = pathOf(pkt, hp, sizeof(hp));
-  history.add(ConvKey::contact(from.id.pub_key), flags, (flags & HF_OUT) ? ST_DELIVERED : ST_RECV,
-              who, text, ts ? ts : getRTCClock()->getCurrentTime(), hopsOf(pkt), (int8_t)(pkt->getSNR() * 4), hp, hn);
+  keepRoute(history.add(ConvKey::contact(from.id.pub_key), flags, (flags & HF_OUT) ? ST_DELIVERED : ST_RECV,
+                        who, text, ts ? ts : getRTCClock()->getCurrentTime(), hopsOf(pkt), (int8_t)(pkt->getSNR() * 4), hp, hn), pkt);
   emit(NodeEvent::RoomMsg, &from);
 }
 
@@ -247,8 +254,8 @@ void InwNode::onChannelMessageRecv(const mesh::GroupChannel& ch, mesh::Packet* p
   const uint8_t flags = mentions(body, getNodeName()) ? HF_MENTION : 0;
   uint8_t hp[8];
   const uint8_t hn = pathOf(pkt, hp, sizeof(hp));
-  history.add(ConvKey::channel(ch.secret), flags, ST_RECV, who, body,
-              getRTCClock()->getCurrentTime(), hopsOf(pkt), (int8_t)(pkt->getSNR() * 4), hp, hn);
+  keepRoute(history.add(ConvKey::channel(ch.secret), flags, ST_RECV, who, body,
+                        getRTCClock()->getCurrentTime(), hopsOf(pkt), (int8_t)(pkt->getSNR() * 4), hp, hn), pkt);
   int idx = findChannelIdx(ch);
   emit(NodeEvent::ChannelMsg, &idx);
 }
@@ -649,6 +656,10 @@ void InwNode::logRx(mesh::Packet* packet, int len, float score) {
   for (auto& e : _echo) {
     if (e.histId && now - e.at < 120000 && !memcmp(e.hash, h, MAX_HASH_SIZE)) {
       history.bumpRepeat(e.histId);
+      // Every repeater in its path carried it: the last is the one we heard, the
+      // ones before it passed it along.
+      if (packet->getPathHashCount())
+        history.heardVia(e.histId, packet->path, packet->getPathHashSize(), packet->getPathHashCount());
       return;
     }
   }
