@@ -41,6 +41,7 @@
 #include "fieldtools.h"
 #include "netwifi.h"
 #include "fx.h"
+#include "regional.h"
 
 // Mesh callbacks (decrypt, verify, then our history write) run on the loop task;
 // give it room rather than finding the edge of the default 8 KB in the field.
@@ -93,6 +94,7 @@ LogStore      logs;
 extern ConvKey g_openConv;
 View* makeHomeView();
 View* makeLockView();
+void startSetup();                     // settings_ui.cpp
 
 uint32_t g_shotAt = 0;
 extern char g_screenTitle[32];   // ui.cpp: the last header drawn
@@ -430,7 +432,7 @@ static void gpsSchedule() {
 static bool quietHours() {
   if (ui_settings.dnd) return true;
   if (!ui_settings.dndSchedule || !app::timeValid()) return false;
-  const time_t t = (time_t)app::now() + ui_settings.tzMinutes * 60;
+  const time_t t = (time_t)app::now() + regional::offsetMin(app::now()) * 60;
   struct tm tm;
   gmtime_r(&t, &tm);
   const uint8_t h = tm.tm_hour, a = ui_settings.dndStart, b = ui_settings.dndEnd;
@@ -607,10 +609,10 @@ static void usbCommands() {
                       (unsigned)p.getBytesLength("ch"), (unsigned)p.getBytesLength("pr"));
         p.end();
       } else Serial.println("[nvs] inw-keep missing");
-      Serial.printf("[ui] theme=%u bright=%u wifi=%d beta=%d lockOnSleep=%d wheelUnlock=%d vol=%u tz=%d\n",
+      Serial.printf("[ui] theme=%u bright=%u wifi=%d beta=%d lockOnSleep=%d wheelUnlock=%d vol=%u tz=%d zone=%u setup=%u\n",
                     ui_settings.themeId, ui_settings.brightness, ui_settings.wifiOn,
                     ui_settings.betaUpdates, ui_settings.lockOnSleep, ui_settings.wheelUnlock,
-                    ui_settings.volume, ui_settings.tzMinutes);
+                    ui_settings.volume, ui_settings.tzMinutes, ui_settings.tzZone, ui_settings.setupDone);
       Serial.printf("[files] channels2=%d prefs=%d identity=%d contacts3=%d\n",
                     (int)(SPIFFS.exists("/channels2") ? SPIFFS.open("/channels2").size() : -1),
                     (int)(SPIFFS.exists("/prefs.json") ? SPIFFS.open("/prefs.json").size() : -1),
@@ -635,7 +637,8 @@ static void usbCommands() {
       else if (!strcmp(name, "beta")) u.betaUpdates = v != 0;
       else if (!strcmp(name, "lock")) u.lockOnSleep = v != 0;
       else if (!strcmp(name, "wheel")) u.wheelUnlock = v != 0;
-      else if (!strcmp(name, "tz")) u.tzMinutes = v;
+      else if (!strcmp(name, "tz")) { u.tzMinutes = v; u.tzZone = 0; }
+      else if (!strcmp(name, "zone") && v >= 0 && v <= regional::ZONE_COUNT) u.tzZone = v;
       else known = false;
       if (!known) { Serial.printf("[set] unknown setting '%s'\n", name); continue; }
       u.save();
@@ -1350,6 +1353,8 @@ void setup() {
       });
     }
   }
+  // Region, time zone and units, once: on top, so it comes before the name.
+  if (!ui_settings.setupDone) startSetup();
 
   // Hold the logo a moment (longer if something failed); any key skips it.
   const uint32_t until = millis() + (s_bootErrY > 196 ? 5000 : 1200);

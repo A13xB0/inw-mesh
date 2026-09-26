@@ -69,6 +69,7 @@ static const char* const GENERAL[] = {
 };
 
 #include "quips_more.h"
+#include "regional.h"
 
 static constexpr int N_THEMED = 20;
 static const char* const THEMED[][N_THEMED] = {
@@ -197,7 +198,7 @@ static bool liveLine(int which, char* out, size_t cap) {
     case 5: if (app::batteryPct() > 25 || !app::batteryPct()) return false;
             snprintf(out, cap, "Battery at %u%%. The mesh can wait, the charger can't.", app::batteryPct()); return true;
   }
-  const int hour = clock ? (int)((((int64_t)now + ui_settings.tzMinutes * 60) % 86400 + 86400) % 86400 / 3600) : -1;
+  const int hour = clock ? (int)((((int64_t)now + regional::offsetMin(now) * 60) % 86400 + 86400) % 86400 / 3600) : -1;
   switch (which) {
     case 6: if (hour < 0 || hour > 4) return false;
             snprintf(out, cap, "%d:%02d and still up. The mesh respects it.", hour ? hour : 12, (int)((now / 60) % 60)); return true;

@@ -15,6 +15,20 @@ UiSettings ui_settings;
 static const char* MIRROR = "/ui.bin";
 static bool s_fromNvs = false;
 
+// A saved copy from an older build is a prefix of ours (fields are only ever
+// appended), but its length includes the old struct's tail padding, which must not
+// land on fields added since. So a shorter copy is taken only up to the first field
+// of the newest release it could hold: each entry below is where a release began
+// adding. (Getting this wrong resets the settings added in between, on update.)
+static void adopt(UiSettings* s, const uint8_t* buf, size_t len) {
+  size_t n = len;
+  if (len < sizeof(UiSettings)) {
+    static const size_t ADDED[] = {offsetof(UiSettings, wifiOn), offsetof(UiSettings, tzZone)};
+    for (size_t b : ADDED) if (len >= b) n = b;
+  }
+  memcpy((void*)s, buf, min(n, sizeof(UiSettings)));
+}
+
 // One blob: forty keys would be forty flash writes every time a toggle moves.
 // A size or version mismatch falls back to defaults, which beats misreading.
 void UiSettings::load() {
@@ -27,9 +41,7 @@ void UiSettings::load() {
     uint8_t* buf = (uint8_t*)malloc(len);
     if (buf) {
       p.getBytes("blob", buf, len);
-      // An older blob's trailing padding must not land on the new fields.
-      const size_t firstNew = offsetof(UiSettings, wifiOn);
-      memcpy((void*)this, buf, len < sizeof(UiSettings) ? min(len, firstNew) : len);
+      adopt(this, buf, len);
       free(buf);
       s_fromNvs = true;
     }
@@ -75,14 +87,14 @@ const char* UiSettings::restoreIfWiped(bool sdReady) {
   const char* from = nullptr;
   File f = SPIFFS.open(MIRROR, FILE_READ);
   if (f && f.size() >= 2 && f.size() <= sizeof(buf) && f.read(buf, f.size()) == (int)f.size() && buf[0] == VERSION) {
-    memcpy((void*)this, buf + 1, min(f.size() - 1, sizeof(UiSettings)));
+    adopt(this, buf + 1, f.size() - 1);
     from = "flash copy";
   }
   if (f) f.close();
   if (!from && sdReady) {
     File g = SD.open("/inw/ui.bin", FILE_READ);
     if (g && g.size() >= 2 && g.size() <= sizeof(buf) && g.read(buf, g.size()) == (int)g.size() && buf[0] == VERSION) {
-      memcpy((void*)this, buf + 1, min(g.size() - 1, sizeof(UiSettings)));
+      adopt(this, buf + 1, g.size() - 1);
       from = "sd card";
     }
     if (g) g.close();

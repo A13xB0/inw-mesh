@@ -7,6 +7,7 @@
 #include "settings.h"
 #include "logstore.h"
 #include "dataio.h"
+#include "regional.h"
 
 extern Battery battery;
 extern LogStore logs;
@@ -27,7 +28,7 @@ static constexpr uint8_t HOLD_PCT = 80, REHOLD_BELOW = 75;
 static constexpr uint32_t FINISH_BEFORE_S = 2UL * 3600UL;    // 80 -> 100 with a slow taper
 
 static int localMinute() {
-  const int64_t t = (int64_t)app::now() + ui_settings.tzMinutes * 60;
+  const int64_t t = (int64_t)app::now() + regional::offsetMin(app::now()) * 60;
   return (int)(((t % 86400) + 86400) % 86400 / 60);
 }
 

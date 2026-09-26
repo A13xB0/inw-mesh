@@ -10,7 +10,7 @@ struct UiSettings {
   static constexpr uint8_t QUICK_MAX = 8;
 
   // clock
-  int16_t  tzMinutes   = -420;      // Pacific daylight
+  int16_t  tzMinutes   = 0;         // fixed offset, used when tzZone is 0 (UTC until setup picks a zone)
   bool     clock24     = false;
   bool     gpsSetsClock = true;
   // display
@@ -80,6 +80,9 @@ struct UiSettings {
   bool     autoUpdateCheck = true;    // look for a new release once per boot on Wi-Fi
   bool     betaUpdates   = false;     // follow every build, not only tagged releases
   bool     wheelUnlock   = true;      // lock screen: only a wheel press unlocks (pocket-safe)
+  // where it is (regional.h)
+  uint8_t  tzZone        = 0;         // 0: the fixed tzMinutes offset; else 1 + index into regional::ZONES
+  uint8_t  setupDone     = 0;         // the first-start setup (region, time zone, units) has been through
 
   void load();
   void save();

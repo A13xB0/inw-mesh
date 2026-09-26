@@ -9,6 +9,7 @@
 #include "power.h"
 #include <time.h>
 #include "emoji_data.h"
+#include "regional.h"
 
 Nav nav;
 static std::vector<View*> s_graveyard;   // popped views die on the next tick, never mid-call
@@ -396,7 +397,7 @@ const char* timeAgo(uint32_t epoch) {
 
 const char* clockText(uint32_t epoch, bool withDate) {
   static char b[24];
-  const time_t t = (time_t)epoch + (time_t)ui_settings.tzMinutes * 60;
+  const time_t t = (time_t)epoch + (time_t)regional::offsetMin(epoch) * 60;
   struct tm tm;
   gmtime_r(&t, &tm);
   char hm[10];
@@ -835,13 +836,21 @@ void PromptView::draw(Canvas& g) {
   g.fillRoundRect(fx, fy, fw, fh, 6, t.panel);
   g.drawRoundRect(fx, fy, fw, fh, 6, t.green);
   g.setFont(&fonts::Font4);
-  String shown = _secret ? String() : _buf;
-  if (_secret) for (size_t i = 0; i < _buf.length(); i++) shown += '*';
+  // A secret is starred unless it's being shown, but the character just typed stays
+  // readable for a moment, as on a phone, so a caps-lock slip shows up as it happens.
+  const bool hidden = _secret && !_show;
+  const bool peek = hidden && _buf.length() && millis() - _typedAt < 900;
+  String shown = hidden ? String() : _buf;
+  if (hidden) {
+    for (size_t i = 0; i + (peek ? 1 : 0) < _buf.length(); i++) shown += '*';
+    if (peek) shown += _buf[_buf.length() - 1];
+  }
   char safe[200];
   sanitize(shown.c_str(), safe, sizeof(safe));
-  // Keep the caret end in view.
+  // Keep the caret end in view (and clear of the eye).
+  const int room = fw - (_secret ? 56 : 26);
   const char* p = safe;
-  while (*p && g.textWidth(p) > fw - 26) p++;
+  while (*p && g.textWidth(p) > room) p++;
   g.setTextColor(t.white, t.panel);
   g.drawString(p, fx + 10, fy + 6);
   if (_caret) g.fillRect(fx + 12 + g.textWidth(p), fy + 8, 3, 21, t.green);
@@ -850,7 +859,22 @@ void PromptView::draw(Canvas& g) {
   snprintf(cnt, sizeof(cnt), "%u/%u", (unsigned)_buf.length(), (unsigned)_maxLen);
   g.setTextColor(t.dim, t.bg);
   g.drawString(cnt, L::W - 12 - g.textWidth(cnt), fy + fh + 6);
+  if (_secret) {
+    // The eye: open while it's shown, struck through while it's hidden.
+    const int ex = fx + fw - 24, ey = fy + fh / 2;
+    const uint16_t ec = _show ? t.green : t.dim;
+    g.drawEllipse(ex, ey, 11, 6, ec);
+    g.fillCircle(ex, ey, 3, ec);
+    if (!_show) { g.drawLine(ex - 11, ey + 7, ex + 11, ey - 7, ec); g.drawLine(ex - 11, ey + 8, ex + 11, ey - 6, t.panel); }
+    g.drawString(_show ? "turn the wheel to hide" : "turn the wheel to show", 12, fy + fh + 6);
+  }
   g.drawString("enter saves  -  backspace on empty cancels  -  hold orange for 123", 12, L::H - 20);
+}
+
+void PromptView::rotate(int) {
+  if (!_secret) return;
+  _show = !_show;
+  dirty = true;
 }
 
 void PromptView::key(char c) {
@@ -858,6 +882,7 @@ void PromptView::key(char c) {
   if ((uint8_t)c < 0x20 || (uint8_t)c > 0x7E || _buf.length() >= _maxLen) return;
   _buf += c;
   _caret = true;
+  _typedAt = millis();
   dirty = true;
 }
 
@@ -870,6 +895,7 @@ bool PromptView::backspace() {
 
 void PromptView::tick() {
   if (millis() - _blink > 500) { _blink = millis(); _caret = !_caret; dirty = true; }
+  if (_typedAt && millis() - _typedAt >= 900) { _typedAt = 0; dirty = true; }   // the peek is over: star it
 }
 
 void PromptView::commit() {

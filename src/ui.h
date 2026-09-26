@@ -186,6 +186,7 @@ public:
   void key(char c) override;
   bool backspace() override;
   void press() override { commit(); }
+  void rotate(int) override;
   void tick() override;
   bool wantsAllKeys() override { return true; }
 private:
@@ -194,7 +195,8 @@ private:
   size_t _maxLen;
   std::function<void(const String&)> _done;
   bool _secret, _caret = true;
-  uint32_t _blink = 0;
+  bool _show = false;              // a secret shown in the clear (the wheel toggles it)
+  uint32_t _blink = 0, _typedAt = 0;
 };
 
 // ---- confirm ------------------------------------------------------------------------

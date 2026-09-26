@@ -14,6 +14,7 @@
 #include "notify.h"
 #include "ota.h"
 #include "logstore.h"
+#include "regional.h"
 #include <SPIFFS.h>
 #include <SD.h>
 
@@ -93,13 +94,99 @@ static const float BWS[] = {7.8f, 10.4f, 15.6f, 20.8f, 31.25f, 41.7f, 62.5f, 125
 
 static void radioChanged() { g_node->applyRadio(); markPrefsDirty(); }
 
+// ---- where you are: region preset, time zone, first-start setup -------------------------------
+// The preset the radio is on now, or -1 for custom settings.
+static int currentRegion() {
+  if (!g_node) return -1;
+  for (int i = 0; i < regional::REGION_COUNT; i++) {
+    const regional::Region& r = regional::REGIONS[i];
+    if (fabsf(P().freq - r.freq) < 0.0006f && fabsf(P().bw - r.bw) < 0.05f && P().sf == r.sf && P().cr == r.cr &&
+        (r.hashMode < 0 || P().path_hash_mode == r.hashMode)) return i;
+  }
+  return -1;
+}
+static String regionName() { const int i = currentRegion(); return i < 0 ? String("custom") : String(regional::REGIONS[i].name); }
+
+static void applyRegion(int i) {
+  const regional::Region& r = regional::REGIONS[i];
+  P().freq = r.freq; P().bw = r.bw; P().sf = r.sf; P().cr = r.cr;
+  if (r.hashMode >= 0) P().path_hash_mode = r.hashMode;
+  radioChanged();
+}
+
+// The zone's name without its example cities, for the narrow spots.
+static String zoneShort() {
+  String n = regional::zoneName();
+  const int b = n.indexOf(" (");
+  return b > 0 ? n.substring(0, b) : n;
+}
+static void setZone(uint8_t z) { ui_settings.tzZone = z; markUiDirty(); nav.statusChanged(); }
+
+// next: during setup, where picking one (or keeping what's there) goes on to.
+static void regionMenu(const char* title, std::function<void()> next) {
+  auto* m = new MenuView(title);
+  if (next) m->action("keep this radio  (" + String(P().freq, 3) + " MHz)", next);
+  for (int i = 0; i < regional::REGION_COUNT; i++)
+    m->toggle(regional::REGIONS[i].name, [i] { return currentRegion() == i; }, [i, next] {
+      applyRegion(i);
+      // A new pager's map opens over Spokane until the GPS has a fix: open it over
+      // the region picked instead.
+      if (next && fabsf(ui_settings.mapLat - 47.6588f) < 0.001f && fabsf(ui_settings.mapLon + 117.4260f) < 0.001f) {
+        ui_settings.mapLat = regional::REGIONS[i].lat; ui_settings.mapLon = regional::REGIONS[i].lon;
+        ui_settings.mapZoom = regional::REGIONS[i].zoom; markUiDirty();
+      }
+      if (next) next(); else nav.toast((String("radio set: ") + regional::REGIONS[i].name).c_str());
+    });
+  nav.push(m);
+}
+
+static void zoneMenu(const char* title, std::function<void()> next) {
+  auto* m = new MenuView(title);
+  if (next) m->action("keep  " + regional::zoneName(), next);
+  for (int i = 0; i < regional::ZONE_COUNT; i++)
+    m->toggle(regional::ZONES[i].name, [i] { return ui_settings.tzZone == i + 1; }, [i, next] {
+      setZone(i + 1);
+      if (next) next();
+    });
+  if (!next)
+    m->adjust("or a fixed offset", [] { return ui_settings.tzZone ? String("-") : regional::fixedOffsetName(); },
+              [](int d) {
+                if (ui_settings.tzZone) ui_settings.tzMinutes = regional::offsetMin(app::now());   // start from the zone's
+                else ui_settings.tzMinutes = constrain(ui_settings.tzMinutes + d * 30, -720, 840);
+                setZone(0);
+              });
+  nav.push(m);
+}
+
+// Shown once, on a pager's first start (and once after the update that brought it):
+// its radio region, time zone, and clock and units. Each step can keep what's there;
+// backing out of it leaves it for the next start.
+static View* s_setupBelow = nullptr;
+static void setupUnits() {
+  auto* m = new MenuView("Setup 3/3  clock and units");
+  m->toggle("24-hour clock", [] { return ui_settings.clock24; },
+            [] { ui_settings.clock24 = !ui_settings.clock24; markUiDirty(); nav.statusChanged(); });
+  m->toggle("distances in miles", [] { return ui_settings.miles; },
+            [] { ui_settings.miles = !ui_settings.miles; markUiDirty(); });
+  m->action("done", [] {
+    ui_settings.setupDone = 1;
+    markUiDirty();
+    nav.popTo(s_setupBelow);
+    nav.toast("all set");
+  });
+  nav.push(m);
+}
+static void setupZone() { zoneMenu("Setup 2/3  time zone", setupUnits); }
+void startSetup() {
+  s_setupBelow = nav.top();
+  if (g_node) regionMenu("Setup 1/3  your radio region", setupZone);
+  else setupZone();
+}
+
 static void radioMenu() {
   auto* m = new MenuView("Radio & Mesh");
   m->rebuild = [](MenuView& v) {
-    v.action("INW mesh preset  910.525 / 62.5 / SF7 / CR5", [] {
-      P().freq = 910.525f; P().bw = 62.5f; P().sf = 7; P().cr = 5;
-      radioChanged(); nav.toast("radio set for the inw mesh");
-    });
+    v.submenu("region preset", [] { regionMenu("Region presets", nullptr); }, [] { return regionName(); });
     v.adjust("frequency", []() -> String { return String(P().freq, 4) + " MHz"; },
              [](int d) { P().freq = constrain(P().freq + d * 0.0125f, 150.0f, 960.0f); radioChanged(); });
     v.action("type a frequency", [] {
@@ -375,10 +462,7 @@ static void gpsMenu() {
 static void clockMenu() {
   auto* m = new MenuView("Clock & time");
   m->info("now", []() -> String { return app::timeValid() ? String(clockText(app::now(), true)) : String("not set"); });
-  m->adjust("time zone", []() -> String {
-    const int t = ui_settings.tzMinutes;
-    char b[16]; snprintf(b, sizeof(b), "UTC%c%d:%02d", t < 0 ? '-' : '+', abs(t) / 60, abs(t) % 60); return String(b); },
-    [](int d) { ui_settings.tzMinutes = constrain(ui_settings.tzMinutes + d * 30, -720, 840); markUiDirty(); nav.statusChanged(); });
+  m->submenu("time zone", [] { zoneMenu("Time zone", nullptr); }, [] { return zoneShort(); });
   m->toggle("24-hour clock", [] { return ui_settings.clock24; },
             [] { ui_settings.clock24 = !ui_settings.clock24; markUiDirty(); nav.statusChanged(); });
   m->toggle("set from gps", [] { return ui_settings.gpsSetsClock; },
@@ -393,7 +477,7 @@ static void clockMenu() {
       // mktime in UTC (TZ is unset on this device), then undo the local offset.
       const time_t local = mktime(&tm);
       if (local < 1700000000) { nav.toast("that date looks wrong"); return; }
-      app::setTime((uint32_t)(local - ui_settings.tzMinutes * 60));
+      app::setTime((uint32_t)(local - regional::offsetMin(local) * 60));
       nav.toast("clock set");
     });
   });
@@ -611,6 +695,7 @@ static void batteryMenu() {
 
 static void systemMenu() {
   auto* m = new MenuView("System");
+  m->action("run first-start setup", [] { startSetup(); });
   m->header("updates");
   m->info("version", []() -> String { return String(FW_VERSION); });
   if (ota::supported()) {
@@ -718,7 +803,7 @@ static const Tile TILES[] = {
   {"Bluetooth", "B", bluetoothMenu, subBle},
   {"Wi-Fi", "w", wifiMenu, subWifi},
   {"GPS", "o", gpsMenu, subGps},
-  {"Clock", "t", clockMenu, subNone},
+  {"Clock", "t", clockMenu, zoneShort},
   {"Display", "*", displayMenu, subNone},
   {"Theme", "^", themeMenu, subTheme},
   {"Sound", "v", soundMenu, subNone},

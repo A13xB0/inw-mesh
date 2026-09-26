@@ -12,6 +12,7 @@
 #include "audio_jingle.h"
 #include "backlight.h"
 #include "logstore.h"
+#include "regional.h"
 
 extern LogStore logs;
 
@@ -57,7 +58,7 @@ static bool openLog(const char* dir, const char* stem, const char* header, char*
   if (!SD.exists("/inw")) SD.mkdir("/inw");
   if (!SD.exists(d)) SD.mkdir(d);
   if (app::timeValid()) {
-    const time_t t = (time_t)app::now() + ui_settings.tzMinutes * 60;
+    const time_t t = (time_t)app::now() + regional::offsetMin(app::now()) * 60;
     struct tm tm;
     gmtime_r(&t, &tm);
     snprintf(path, cap, "%s/%s-%04d%02d%02d-%02d%02d.csv", d, stem, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
