@@ -45,8 +45,9 @@ bool primed = false;
 uint32_t lastSample = 0;
 float shake = 0, tilt = 0;              // the latest, for debugPrint
 
-// The last 1.6 s of how it was held: "quite differently a moment ago".
-constexpr int RING = 40;
+// The last 3 s of how it was held: "quite differently a moment ago". A slow lift
+// plus a hand settling takes longer than 1.6 s, which missed on a pager.
+constexpr int RING = 75;
 Vec ring[RING];
 int ringN = 0, ringAt = 0;
 int steadyN = 0;                        // samples in a row that barely moved
@@ -68,7 +69,8 @@ void sample(const Vec& a) {
   shake = sqrtf(dot(d, d));
   const Vec att = unit(lp);
   tilt = acosf(constrain(att.z * SCREEN_Z, -1.0f, 1.0f)) * 57.29578f;   // 0 face up, 90 on edge, 180 face down
-  steadyN = shake < 0.05f ? steadyN + 1 : 0;
+  // Held still in a hand: a hand shakes 0.02-0.07 g here, a table under 0.005.
+  steadyN = shake < 0.08f ? steadyN + 1 : 0;
 
   // Man-down: a real jolt, or turned 12 degrees since it last moved. Breathing and
   // a table's hum stay under both.
@@ -83,16 +85,16 @@ void sample(const Vec& a) {
   if (face != wasFace) Serial.println(face ? "[motion] face down" : "[motion] face up");
 
   // Raise to wake: held steady in view (the screen tipped 15-80 degrees back from
-  // flat, the right way up and not on its side) for a fifth of a second, after
-  // being held quite differently (35+ degrees) within the last 1.6 s: out of a
-  // pocket, up off a table, turned over. Walking never holds it steady, putting it
-  // down ends flat, and a pocket mostly holds it upside down or on its side.
+  // flat, the right way up and not on its side) for 0.16 s, after being held quite
+  // differently (35+ degrees) within the last 3 s: out of a pocket, up off a table,
+  // turned over. Walking holds it the same way throughout, putting it down ends
+  // flat, and a pocket mostly holds it upside down or on its side.
   // Held to read, the top edge is up: y reads negative (measured on a pager).
   ring[ringAt] = att;
   ringAt = (ringAt + 1) % RING;
   if (ringN < RING) ringN++;
   const bool upright = att.y < 0 && fabsf(att.x) < 0.6f;
-  if (steadyN >= 5 && tilt >= 15 && tilt <= 80 && upright) {
+  if (steadyN >= 4 && tilt >= 15 && tilt <= 80 && upright) {
     for (int i = 0; i < ringN; i++) {
       if (degBetween(ring[i], att) >= 35) {
         raised = true;
