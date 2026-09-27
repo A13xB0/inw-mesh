@@ -44,6 +44,7 @@
 #include "fx.h"
 #include "regional.h"
 #include "extport.h"
+#include "motion.h"
 #if INW_DEV
 #include <CayenneLPP.h>
 namespace ext { void drawPage(Canvas& g, int down); void fake(); }
@@ -454,9 +455,11 @@ static void alert(const char* title, const char* text, AlertKind kind, bool sile
   const ThemeSpec& th = app::themeSpec();
   const Jingle* sound = kind == AlertKind::Dm ? th.dm : kind == AlertKind::Mention ? th.mention : th.msg;
   const VibePattern& vibe = kind == AlertKind::Dm ? th.vibeDm : kind == AlertKind::Mention ? th.vibeMention : th.vibeMsg;
-  if (ui_settings.wakeOnMessage && !silent) dimmer.wake();
+  // Face down on a table (with that setting on): no light, no sound, no buzz.
+  const bool faceDown = motion::faceDown();
+  if (ui_settings.wakeOnMessage && !silent && !faceDown) dimmer.wake();
   nav.banner(title, text);
-  if (silent || quietHours()) return;
+  if (silent || quietHours() || faceDown) return;
   if (ui_settings.vibrate) haptic.pattern(vibe.seq, vibe.n);
   if (ui_settings.sound) jingle.play(sound);
   if (ui_settings.kbFlash) { keyboard.setBacklight(255); s_kbFlashUntil = millis() + 2500; }
@@ -992,6 +995,8 @@ static void usbCommands() {
     }
     // What is plugged into the top header, and what IO9 is doing.
     if (!strcmp(line, "ext")) { ext::report(); continue; }
+    // What the motion sensor sees: which way is down, how still, face down or not.
+    if (!strcmp(line, "motion")) { motion::debugPrint(); continue; }
     dimmer.note();
     if (!strcmp(line, "stores")) {
       storeReport();
@@ -1426,6 +1431,8 @@ void setup() {
     logs.add(LOG_INFO, "%s", info);
   }
   ext::begin();                                  // sensors on the top header, IO9
+  motion::begin();                               // raise to wake, face down, man-down
+  bootStep("motion", strcmp(motion::state(), "not responding"), motion::state());
   wifi::begin();
   s_bootStep = BOOT_STEPS - 1;
   bootStep("ready", true);
@@ -1563,11 +1570,18 @@ void loop() {
     btnDownAt = 0;
   }
 
+  // Any input means someone is there (the man-down alarm's clock), even keys
+  // pressed with the screen off.
+  if (detents || press || anyKey || btnDown) motion::noteActivity();
+  const bool raised = motion::takeRaise();       // taken every pass, so it can't go stale
+
   if (dimmer.asleep()) {
-    // Screen off: only the side button wakes it. Keys and the wheel get pressed in
-    // a pocket, and each stray wake lit the screen and let the next bump unlock it.
-    // Their events were read above so they don't pile up; here they are dropped.
-    if (btnPress) { if (ui_settings.lockOnSleep) app::lock(); screenWakeAnimated(); }
+    // Screen off: only the side button wakes it, or lifting the pager into view.
+    // Keys and the wheel get pressed in a pocket, and each stray wake lit the
+    // screen and let the next bump unlock it. Their events were read above so they
+    // don't pile up; here they are dropped. A raise lands on the lock face, which
+    // goes dark again in 10 s if nobody unlocks it.
+    if (btnPress || raised) { if (ui_settings.lockOnSleep) app::lock(); screenWakeAnimated(); }
   } else if (detents || press || anyKey || btnTap) {
     // With wheel-only unlock, on the lock screen only a wheel press counts as someone
     // using it, so stray keys can't keep a pocketed screen lit.
@@ -1622,6 +1636,7 @@ void loop() {
   power::tick();
   ota::tick();
   ext::tick();
+  motion::tick();
   nodeLoop();
   lap(3);
   nav.tick();

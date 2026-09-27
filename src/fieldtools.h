@@ -14,8 +14,10 @@ namespace field {
 
   // SOS: a message with our position to one channel now and every 5 minutes until
   // stopped. Five quick presses of the side button start it after a countdown.
+  // The man-down alarm (motion.h) starts the same countdown: no movement for the
+  // time set under SOS beacon, after a minute of chirps.
   bool sosOn();
-  void sosArm();               // the countdown screen: sends unless cancelled
+  void sosArm(const char* why = nullptr);   // the countdown screen: sends unless cancelled
   void sosNoteButton();        // main.cpp: every side-button press
 
   // Breadcrumb trail: where we've been, drawn on the map, with the way back.

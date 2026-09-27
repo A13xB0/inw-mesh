@@ -16,6 +16,7 @@
 #include "logstore.h"
 #include "regional.h"
 #include "regions.h"
+#include "motion.h"
 #include <algorithm>
 #include <SPIFFS.h>
 #include <SD.h>
@@ -651,6 +652,11 @@ static void displayMenu() {
             [] { ui_settings.wheelUnlock = !ui_settings.wheelUnlock; markUiDirty(); });
   m->toggle("wake screen on message", [] { return ui_settings.wakeOnMessage; },
             [] { ui_settings.wakeOnMessage = !ui_settings.wakeOnMessage; markUiDirty(); });
+  // Lifting it into view lights the screen on the lock face (motion.h).
+  m->toggle("raise to wake", [] { return motion::raiseToWake(); }, [] {
+    motion::setRaiseToWake(!motion::raiseToWake());
+    if (motion::raiseToWake() && !motion::running()) nav.toast("motion sensor not responding", 3000);
+  });
   nav.push(m);
 }
 
@@ -722,6 +728,13 @@ static void notifyMenu() {
   m->info("per chat", []() -> String { return String("a channel or contact's menu overrides these"); });
   tg(*m, "new contacts", &ui_settings.notifyNewContact);
   tg(*m, "light keyboard on message", &ui_settings.kbFlash);
+  // Lying flat and still, screen down: messages arrive without light, sound or buzz.
+  // A pocket holds it on its edge, so it doesn't go quiet there.
+  m->toggle("quiet when face down", [] { return motion::quietFaceDown(); }, [] {
+    motion::setQuietFaceDown(!motion::quietFaceDown());
+    if (motion::quietFaceDown())
+      nav.toast(motion::running() ? "lie it screen-down: messages stay quiet" : "motion sensor not responding", 3000);
+  });
   m->header("quiet hours");
   tg(*m, "quiet hours", &ui_settings.dndSchedule);
   m->adjust("from", []() -> String { return String(ui_settings.dndStart) + ":00"; },

@@ -23,7 +23,28 @@ Buttons and power (the guide's "Buttons & power" section has the same)
 - Powered off hears nothing: messages sent meanwhile are missed. To save battery but keep receiving,
   tap the middle button to turn just the screen off.
 - Five fast taps on the middle button start the SOS countdown, 20 seconds from 1.2.2 (if SOS is set up
-  under Tools > field). Any key cancels it.
+  under Tools > field). Any key cancels it. From 1.2.2 the man-down alarm can start it too (below).
+
+Motion sensor (1.2.2): raise to wake, quiet when face down, man-down alarm
+- The pager has a Bosch BHI260AP motion sensor (accelerometer + gyroscope). No magnetometer, so no
+  compass; nothing in the firmware claims one.
+- Raise to wake: Settings > Display > raise to wake, ON by default. Lifting the pager into view (tilted
+  towards you, out of a pocket or up off a table) turns the screen on at the lock face; it goes dark again
+  after 10 s if not unlocked. It can now and then light in a pocket (sitting down, say): that costs almost
+  nothing and keys still can't unlock it. Turn it off there if it bothers them.
+- Quiet when face down: Settings > Notifications, OFF by default. Flat, screen down and still for 2 s:
+  messages arrive with no sound, vibration, keyboard light or screen wake. Picking it up ends it. A pocket
+  holds the pager on its edge, so it doesn't trigger there; lying flat face-down in a bag would.
+- Man-down alarm: Tools > field > SOS beacon > "no movement for" (off, 5, 10, 15, 30 min), OFF by default.
+  No movement and no key for that long: a minute of chirps and buzzes, faster at the end, on an amber
+  "Are you OK?" screen, then the normal 20 s SOS countdown (red, siren). Moving the pager or any key resets
+  it. It waits while charging and while an SOS is already on. The SOS message says "(no movement for N
+  min)". It needs an SOS channel like the normal SOS. The chirps sound even with sounds off or in quiet
+  hours, on purpose.
+- A pager left on a table with the man-down alarm on WILL chirp and then send an SOS unless someone
+  cancels: tell them to turn it off when they put the pager down for the day.
+- "motion sensor not responding" (at boot or in those menus): restart the pager. If it stays, hand off to
+  the developer.
 - Download mode for flashing: hold middle (BOOT), tap left (reset), let go of middle.
 
 Sound, battery and screen (1.2.1)

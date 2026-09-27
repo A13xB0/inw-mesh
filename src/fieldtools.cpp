@@ -13,6 +13,8 @@
 #include "backlight.h"
 #include "logstore.h"
 #include "regional.h"
+#include "settings.h"
+#include "motion.h"
 
 extern LogStore logs;
 
@@ -181,6 +183,9 @@ static void rangePage() {
 static bool s_sos = false;
 static uint32_t s_sosNext = 0, s_sosSent = 0;
 static const uint32_t SOS_EVERY_MS = 5UL * 60UL * 1000UL;
+// Why the countdown started when it wasn't the user ("no movement for 10 min"),
+// and so why the SOS went out: it goes in the message, for whoever reads it.
+static char s_armWhy[40] = "", s_sosWhy[40] = "";
 
 bool sosOn() { return s_sos; }
 
@@ -208,14 +213,16 @@ static void sosSend() {
   ChannelDetails ch;
   g_node->getChannel(idx, ch);
   double la, lo;
-  char text[140];
+  char text[140], why[48] = "";              // with the reason, still under 125 at most
+  if (s_sosWhy[0]) snprintf(why, sizeof(why), " (%s)", s_sosWhy);
   if (fix(la, lo))
-    snprintf(text, sizeof(text), "SOS - %s needs help. At %.5f,%.5f (gps, %u sats)", g_node->name(), la, lo, gps.fix().satellites);
+    snprintf(text, sizeof(text), "SOS - %s needs help%s. At %.5f,%.5f (gps, %u sats)", g_node->name(), why, la, lo,
+             gps.fix().satellites);
   else if (g_node->prefs().node_lat || g_node->prefs().node_lon)
-    snprintf(text, sizeof(text), "SOS - %s needs help. Last known %.5f,%.5f (no gps fix now)", g_node->name(),
+    snprintf(text, sizeof(text), "SOS - %s needs help%s. Last known %.5f,%.5f (no gps fix now)", g_node->name(), why,
              g_node->prefs().node_lat, g_node->prefs().node_lon);
   else
-    snprintf(text, sizeof(text), "SOS - %s needs help. Position unknown (no gps fix)", g_node->name());
+    snprintf(text, sizeof(text), "SOS - %s needs help%s. Position unknown (no gps fix)", g_node->name(), why);
   const uint32_t id = history.add(ConvKey::channel(ch.channel.secret), HF_OUT, ST_SENDING, g_node->name(), text, app::now());
   g_node->sendChannel(idx, text, id);
   s_sosSent++;
@@ -226,6 +233,7 @@ static void sosStart() {
   if (sosChannel() < 0) { nav.toast("join a channel first - sos goes to a channel", 3000); return; }
   s_sos = true;
   s_sosSent = 0;
+  strlcpy(s_sosWhy, s_armWhy, sizeof(s_sosWhy));
   sosSend();                                 // position may be old; the next send has a fresh fix
   s_sosNext = millis() + SOS_EVERY_MS;
   haptic.buzz(3);
@@ -299,15 +307,17 @@ public:
     snprintf(b, sizeof(b), "sending in %lu", (unsigned long)armRemaining());
     g.drawString(b, L::W / 2, 110);
     g.setFont(&fonts::Font2);
+    int y = 145;
+    if (s_armWhy[0]) { g.drawString(s_armWhy, L::W / 2, 138); y = 158; }   // the man-down alarm started it
     const int idx = sosChannel();
     ChannelDetails ch;
     if (idx >= 0 && g_node && g_node->getChannel(idx, ch)) {
       char nm[40];
       sanitize(ch.name, nm, sizeof(nm));
       snprintf(b, sizeof(b), "to channel %s, with your position", nm);
-      g.drawString(b, L::W / 2, 145);
+      g.drawString(b, L::W / 2, y);
     }
-    g.drawString("press any key to cancel", L::W / 2, 180);
+    g.drawString("press any key to cancel", L::W / 2, s_armWhy[0] ? 182 : 180);
     g.setTextDatum(textdatum_t::top_left);
   }
   void key(char) override { cancel(); }
@@ -327,9 +337,10 @@ private:
   uint32_t _shown = 99;
 };
 
-void sosArm() {
+void sosArm(const char* why) {
   if (s_sos) { nav.toast("sos is already on - tools > field to stop", 3000); return; }
   if (s_armAt) return;                       // already counting down
+  strlcpy(s_armWhy, why ? why : "", sizeof(s_armWhy));
   s_armAt = millis() | 1;
   dimmer.wake();
   nav.push(new SosArmView());
@@ -363,6 +374,104 @@ void sosNoteButton() {
   }
 }
 
+// ---- man-down alarm --------------------------------------------------------------------------
+// No movement for the time set under SOS beacon (motion.h keeps the clock, and any
+// key or the wheel counts as moving): a minute of chirps that come faster, on a
+// screen saying why, then the SOS countdown above. Moving the pager or pressing
+// anything starts the time again. It waits while the pager charges: on a charger
+// it's on a desk or a nightstand, not on someone who is down.
+static constexpr uint32_t MD_WARN_MS = 60000;
+static bool s_mdWarn = false;
+static const ToneStep MD_CHIRP[] = {{2400, 70, 3200}};
+static const Jingle MD_CHIRP_J = {"chirp", MD_CHIRP, 1, WAVE_SQUARE, false};
+
+static uint32_t mdLimit() { return motion::manDownMin() * 60000UL; }
+static uint32_t mdLeft() {
+  const uint32_t s = motion::stillFor(), l = mdLimit();
+  return s >= l ? 0 : (l - s + 999) / 1000;
+}
+
+// Why it isn't counting, or nullptr when it is.
+static const char* manDownWaiting() {
+  if (!motion::manDownMin()) return "off";
+  if (s_sos) return "waiting: the SOS is on";
+  if (!motion::running()) return "motion sensor not responding";
+  if (app::pluggedIn()) return "waiting: on the charger";
+  return nullptr;
+}
+
+// Amber, where the countdown is red: this one is still asking.
+class ManDownView : public View {
+public:
+  void tick() override {
+    if (!s_mdWarn) { if (nav.top() == this) nav.pop(); return; }   // moved, or on to the countdown
+    const uint32_t left = mdLeft();
+    if (left != _shown) { _shown = left; dirty = true; dimmer.wake(); }   // lit for the whole minute
+  }
+  void draw(Canvas& g) override {
+    const uint16_t amber = 0xFDA0;
+    g.fillRect(0, L::HEAD_Y, L::W, L::H - L::HEAD_Y, amber);
+    g.setTextColor(TFT_BLACK, amber);
+    g.setTextDatum(textdatum_t::middle_center);
+    g.setFont(&fonts::Font4);
+    g.drawString("Are you OK?", L::W / 2, 66);
+    char b[48];
+    snprintf(b, sizeof(b), "SOS countdown in %lu", (unsigned long)mdLeft());
+    g.drawString(b, L::W / 2, 106);
+    g.setFont(&fonts::Font2);
+    snprintf(b, sizeof(b), "no movement for %lu min", (unsigned long)(motion::stillFor() / 60000));
+    g.drawString(b, L::W / 2, 146);
+    g.drawString("move the pager or press any key", L::W / 2, 176);
+    g.setTextDatum(textdatum_t::top_left);
+  }
+  // main.cpp already counts every input as movement; the tick then closes this.
+  void key(char) override { motion::noteActivity(); }
+  void press() override { motion::noteActivity(); }
+  void rotate(int) override { motion::noteActivity(); }
+  bool backspace() override { motion::noteActivity(); return true; }
+  bool wantsAllKeys() override { return true; }
+private:
+  uint32_t _shown = 0;
+};
+
+static void mdEnd() {
+  if (!s_mdWarn) return;
+  s_mdWarn = false;
+  app::applySound();                         // the chirps' volume back to the user's
+}
+
+static void manDownTick() {
+  static uint32_t lastChirp = 0;
+  if (s_armAt || manDownWaiting()) { mdEnd(); return; }
+  const uint32_t still = motion::stillFor(), limit = mdLimit();
+  if (still + MD_WARN_MS < limit) { mdEnd(); return; }
+  if (still >= limit) {
+    mdEnd();
+    char why[40];
+    snprintf(why, sizeof(why), "no movement for %u min", motion::manDownMin());
+    logs.add(LOG_WARN, "man-down: %s, sos countdown", why);
+    sosArm(why);
+    return;
+  }
+  if (!s_mdWarn) {
+    s_mdWarn = true;
+    lastChirp = 0;
+    logs.add(LOG_INFO, "man-down: no movement, warning");
+    dimmer.wake();
+    nav.push(new ManDownView());
+  }
+  // A chirp and a buzz every 6 s, every 3 s from half a minute out, every second
+  // for the last ten. Loud even when muted: whoever turned this on wants to hear it.
+  const uint32_t left = limit - still;
+  const uint32_t every = left > 30000 ? 6000 : left > 10000 ? 3000 : 1000;
+  if (!lastChirp || millis() - lastChirp >= every) {
+    lastChirp = millis();
+    haptic.buzz(1);
+    jingle.setVolume(max<uint8_t>(ui_settings.volume, 70));
+    jingle.play(&MD_CHIRP_J);
+  }
+}
+
 static void sosMenu() {
   auto* m = new MenuView("SOS beacon");
   m->rebuild = [](MenuView& v) {
@@ -387,6 +496,29 @@ static void sosMenu() {
     });
     v.info("repeats", []() -> String { return String("every 5 min until stopped"); });
     v.info("shortcut", []() -> String { return String("press the side button 5 times fast"); });
+    v.header("man-down alarm");
+    v.value("no movement for", []() -> String {
+      const uint8_t m = motion::manDownMin();
+      return m ? String(m) + " min" : String("off");
+    }, [] {
+#if INW_DEV
+      static const uint8_t M[] = {0, 1, 5, 10, 15, 30};   // 1 min, for trying it out
+#else
+      static const uint8_t M[] = {0, 5, 10, 15, 30};
+#endif
+      constexpr uint8_t N = sizeof(M) / sizeof(M[0]);
+      uint8_t i = 0;
+      for (uint8_t k = 0; k < N; k++) if (M[k] == motion::manDownMin()) i = k;
+      motion::setManDownMin(M[(i + 1) % N]);
+      if (motion::manDownMin() && !motion::running()) nav.toast("motion sensor not responding", 3000);
+      nav.invalidate();
+    });
+    v.info("now", []() -> String {
+      if (const char* w = manDownWaiting()) return String(w);
+      const uint32_t s = motion::stillFor() / 1000;
+      return s < 60 ? String("watching") : String("still for ") + (s / 60) + " min";
+    });
+    v.info("then", []() -> String { return String("a minute of chirps, then the SOS countdown"); });
   };
   m->rebuild(*m);
   nav.push(m);
@@ -461,11 +593,14 @@ static void trailPage() {
 }
 
 // ---- menu / loop ------------------------------------------------------------------------------
-bool wantsGps() { return s_range || s_sos || s_trail; }
+// The SOS countdown and the man-down warning count too, so the SOS goes out with a
+// fresh position rather than one from the last half-hourly fix.
+bool wantsGps() { return s_range || s_sos || s_trail || s_armAt || s_mdWarn; }
 
 void tick() {
   rangeTick();
   armTick();
+  manDownTick();
   sosTick();
   trailTick();
 }
