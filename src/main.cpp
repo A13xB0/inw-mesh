@@ -701,6 +701,21 @@ static void usbCommands() {
       Serial.write((const uint8_t*)buf.getBuffer(), L::W * L::H * 2);
       Serial.flush();
     };
+    // Wi-Fi: "wifijoin SSID|PASS" tries once without saving anything, "wifiscan"
+    // scans, "wifi" prints the state the screens show.
+    if (!strncmp(line, "wifijoin ", 9)) {
+      char* bar = strchr(line + 9, '|');
+      if (bar) { *bar = 0; wifi::testJoin(line + 9, bar + 1); Serial.println("[wifi] joining"); }
+      continue;
+    }
+    if (!strcmp(line, "wifiscan")) { wifi::startScan(); Serial.println("[wifi] scan started"); continue; }
+    if (!strcmp(line, "wifi")) {
+      Serial.printf("[wifi] status: %s | tile: %s\n", wifi::statusText(), wifi::shortStatus());
+      for (uint8_t i = 0; i < wifi::savedCount(); i++)
+        Serial.printf("[wifi] saved %u: %s | %s\n", i, wifi::savedSsid(i), wifi::savedState(i));
+      Serial.printf("[wifi] scan %s, %d found\n", wifi::scanDone() ? "done" : "not done", wifi::scanCount());
+      continue;
+    }
     // "io9 N": the IO9 mode for now (not saved), then an alert, for checking the pin.
     if (!strncmp(line, "io9 ", 4)) {
       ui_settings.io9Mode = atoi(line + 4) % 3;

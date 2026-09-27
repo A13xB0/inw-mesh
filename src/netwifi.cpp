@@ -15,6 +15,7 @@ namespace wifi {
 
 struct Saved { char ssid[33]; char pass[65]; };
 static Saved s_saved[SAVED_MAX];
+static Saved s_test;                         // a one-off join from USB (dev builds), never stored
 static uint8_t s_count = 0;
 static bool s_on = false, s_scanning = false;
 static int s_scanResults = -1;
@@ -22,6 +23,89 @@ static uint8_t s_try = 0;
 static uint32_t s_nextTry = 0;
 static bool s_wasConnected = false;
 static volatile bool s_ntpSynced = false;
+
+// Scans. The core gives up on an async scan after 6 s and from then on reports
+// it failed, even once the results are in; a scan that ran long (Bluetooth
+// sharing the radio makes them slower) was left "scanning..." forever. So the
+// scan-done event says when it's finished, and the results are counted directly.
+static volatile bool s_scanDoneEvt = false;
+static bool s_scanWanted = false;            // asked for, not started: the radio was busy joining
+static uint32_t s_scanAt = 0, s_scanTryAt = 0;
+
+// Joining, and how each saved network's last attempt went, so the screen can say
+// "wrong password?" instead of "searching" forever.
+enum Result : uint8_t { J_NONE, J_OK, J_PASSWORD, J_NOT_FOUND, J_WEAK, J_NO_IP, J_OTHER };
+static Result s_result[SAVED_MAX + 1];       // + the USB test slot
+static int8_t s_joinSlot = -1, s_lastSlot = -1;
+static uint32_t s_joinAt = 0;
+static volatile bool s_assoc = false;        // joined, still waiting for an address
+static volatile uint8_t s_reason = 0;        // why the join in progress ended, 0 = hasn't
+
+static const Saved& net(int k) { return k == SAVED_MAX ? s_test : s_saved[k]; }
+
+static void onEvent(arduino_event_id_t e, arduino_event_info_t info) {
+  switch (e) {
+    case ARDUINO_EVENT_WIFI_SCAN_DONE: s_scanDoneEvt = true; break;
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED: s_assoc = true; break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: {
+      s_assoc = false;
+      const uint8_t r = info.wifi_sta_disconnected.reason;
+      if (r != WIFI_REASON_ASSOC_LEAVE) s_reason = r ? r : (uint8_t)WIFI_REASON_UNSPECIFIED;   // LEAVE: we hung up
+      break;
+    }
+    default: break;
+  }
+}
+
+static Result classify(uint8_t r) {
+  switch (r) {
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT: case WIFI_REASON_HANDSHAKE_TIMEOUT: case WIFI_REASON_AUTH_FAIL:
+    case WIFI_REASON_MIC_FAILURE: case WIFI_REASON_802_1X_AUTH_FAILED:
+      return J_PASSWORD;
+    case WIFI_REASON_NO_AP_FOUND:
+      return J_NOT_FOUND;
+    case WIFI_REASON_BEACON_TIMEOUT: case WIFI_REASON_ASSOC_FAIL: case WIFI_REASON_AUTH_EXPIRE:
+    case WIFI_REASON_ASSOC_EXPIRE: case WIFI_REASON_CONNECTION_FAIL: case WIFI_REASON_TIMEOUT:
+      return J_WEAK;
+    default:
+      return J_OTHER;
+  }
+}
+
+static const char* resultText(Result r) {
+  switch (r) {
+    case J_OK:        return "connected";
+    case J_PASSWORD:  return "wrong password?";
+    case J_NOT_FOUND: return "not found (2.4 GHz only)";
+    case J_WEAK:      return "no answer, weak signal?";
+    case J_NO_IP:     return "joined, router gave no address";
+    case J_OTHER:     return "couldn't join";
+    default:          return "";
+  }
+}
+
+static void join(int k) {
+  s_joinSlot = s_lastSlot = k;
+  s_joinAt = millis() | 1;
+  s_assoc = false;
+  s_reason = 0;
+  WiFi.begin(net(k).ssid, net(k).pass);
+}
+
+static int scanFound() {
+  int n = 0;
+  while (n < 100 && WiFi.getScanInfoByIndex(n)) n++;
+  return n;
+}
+
+static void tryStartScan() {
+  s_scanTryAt = millis();
+  WiFi.scanDelete();
+  s_scanDoneEvt = false;
+  if (WiFi.scanNetworks(true) == WIFI_SCAN_RUNNING) { s_scanWanted = false; return; }
+  // A scan can't start while a join is under way: stop that one, try again next tick.
+  if (!connected()) { s_joinSlot = -1; WiFi.disconnect(); }
+}
 
 static void load() {
   Preferences p;
@@ -44,20 +128,22 @@ static void onNtp(struct timeval*) { s_ntpSynced = true; }
 
 static void connectNext() {
   if (!s_count) return;
-  // Prefer a saved network the last scan actually saw, strongest first.
+  // Prefer a saved network the last scan actually saw, strongest first, unless
+  // its last try failed: then the others get a turn instead of that one forever.
   int best = -1, bestRssi = -1000;
-  const int n = WiFi.scanComplete();
+  const int n = s_scanResults;
   for (int i = 0; i < n; i++) {
     for (uint8_t k = 0; k < s_count; k++) {
+      if (s_result[k] > J_OK) continue;
       if (WiFi.SSID(i) == s_saved[k].ssid && WiFi.RSSI(i) > bestRssi) { best = k; bestRssi = WiFi.RSSI(i); }
     }
   }
-  const uint8_t k = best >= 0 ? best : (s_try++ % s_count);
-  WiFi.begin(s_saved[k].ssid, s_saved[k].pass);
+  join(best >= 0 ? best : (s_try++ % s_count));
 }
 
 void begin() {
   load();
+  WiFi.onEvent(onEvent);
   if (ui_settings.wifiOn) setEnabled(true);
 }
 
@@ -72,6 +158,8 @@ void setEnabled(bool on) {
     s_nextTry = millis();
     logs.add(LOG_INFO, "wifi on");
   } else {
+    s_joinSlot = -1;
+    s_scanning = s_scanWanted = false;
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
     s_wasConnected = false;
@@ -90,13 +178,69 @@ const char* statusText() {
     snprintf(b, sizeof(b), "%s  %s  %d dBm", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
     return b;
   }
-  if (!s_count) return "no saved networks - scan to add one";
+  if (!s_count && s_joinSlot < 0) return "no saved networks - scan to add one";
+  if (s_joinSlot >= 0) {
+    snprintf(b, sizeof(b), "%s %.20s...", s_assoc ? "getting an address from" : "joining", net(s_joinSlot).ssid);
+    return b;
+  }
+  if (s_lastSlot >= 0 && s_result[s_lastSlot] > J_OK) {
+    snprintf(b, sizeof(b), "%.20s: %s", net(s_lastSlot).ssid, resultText(s_result[s_lastSlot]));
+    return b;
+  }
   return "searching";
+}
+
+const char* shortStatus() {
+  if (!s_on) return "off";
+  if (connected()) return ssid();
+  if (s_joinSlot < 0 && s_lastSlot >= 0 && s_result[s_lastSlot] > J_OK) return resultText(s_result[s_lastSlot]);
+  return "searching";
+}
+
+const char* savedState(uint8_t i) {
+  if (!s_on || i >= s_count) return "";
+  if (connected() && WiFi.SSID() == s_saved[i].ssid) return "connected";
+  if (s_joinSlot == i) return "joining...";
+  return s_result[i] > J_OK ? resultText(s_result[i]) : "";
 }
 
 void tick() {
   if (!s_on) return;
   const bool c = WiFi.status() == WL_CONNECTED;
+
+  // How the join under way ended. Wrong passwords are retried less often: every
+  // 20 s would just keep knocking on the router with it.
+  if (s_joinSlot >= 0) {
+    const uint8_t r = s_reason;
+    if (c) {
+      s_result[s_joinSlot] = J_OK;
+      s_joinSlot = -1;
+    } else if (r || (int32_t)(millis() - s_joinAt) > 15000) {
+      const Result res = r ? classify(r) : s_assoc ? J_NO_IP : J_WEAK;
+      s_result[s_joinSlot] = res;
+      logs.add(LOG_WARN, "wifi %s: %s (reason %u)", net(s_joinSlot).ssid, resultText(res), r);
+      s_joinSlot = -1;
+      if (!r) WiFi.disconnect();                // gave up waiting: stop that attempt
+      s_nextTry = millis() + (res == J_PASSWORD ? 120000UL : 20000UL);
+    }
+  }
+
+  if (s_scanning) {
+    if (s_scanWanted) {
+      if (millis() - s_scanTryAt > 300) tryStartScan();
+    } else if (s_scanDoneEvt) {
+      s_scanDoneEvt = false;
+      s_scanning = false;
+      s_scanResults = scanFound();
+    }
+    if (s_scanning && millis() - s_scanAt > 20000) {  // never came back: show what there is
+      WiFi.scanComplete();                            // lets the core clear its "scanning" flag
+      s_scanning = s_scanWanted = false;
+      s_scanResults = scanFound();
+      logs.add(LOG_WARN, "wifi scan gave up after 20 s, %d found", s_scanResults);
+    }
+  }
+
   if (c && !s_wasConnected) {
     logs.add(LOG_INFO, "wifi %s %s", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
     if (ui_settings.ntpSync) {
@@ -110,11 +254,10 @@ void tick() {
     app::setTime((uint32_t)time(nullptr));     // also writes the hardware RTC
     logs.add(LOG_INFO, "clock set from internet");
   }
-  if (!c && !s_scanning && (int32_t)(millis() - s_nextTry) >= 0) {
+  if (!c && !s_scanning && s_joinSlot < 0 && (int32_t)(millis() - s_nextTry) >= 0) {
     s_nextTry = millis() + 20000;
     connectNext();
   }
-  if (s_scanning && WiFi.scanComplete() >= 0) { s_scanning = false; s_scanResults = WiFi.scanComplete(); }
 }
 
 uint8_t savedCount() { return s_count; }
@@ -131,30 +274,51 @@ void save(const char* ss, const char* pass) {
   strlcpy(s_saved[slot].pass, pass, sizeof(s_saved[slot].pass));
   store();
   if (!s_on) { ui_settings.wifiOn = true; ui_settings.save(); setEnabled(true); }
+  s_result[slot] = J_NONE;
+  s_scanning = s_scanWanted = false;            // the join goes first
   WiFi.disconnect();
-  WiFi.begin(s_saved[slot].ssid, s_saved[slot].pass);
+  join(slot);
   s_nextTry = millis() + 20000;
 }
 
 void forget(uint8_t i) {
   if (i >= s_count) return;
   memmove(&s_saved[i], &s_saved[i + 1], sizeof(Saved) * (s_count - i - 1));
+  memmove(&s_result[i], &s_result[i + 1], sizeof(Result) * (s_count - i - 1));
   s_count--;
   memset(&s_saved[s_count], 0, sizeof(Saved));
+  s_result[s_count] = J_NONE;
+  if (s_joinSlot == i) s_joinSlot = -1; else if (s_joinSlot > i) s_joinSlot--;
+  if (s_lastSlot == i) s_lastSlot = -1; else if (s_lastSlot > i) s_lastSlot--;
   store();
 }
 
 void startScan() {
   if (!s_on) setEnabled(true);
-  WiFi.scanDelete();
   s_scanResults = -1;
-  s_scanning = WiFi.scanNetworks(true) == WIFI_SCAN_RUNNING;
+  s_scanning = s_scanWanted = true;
+  s_scanAt = millis();
+  tryStartScan();
 }
 bool scanDone() { return !s_scanning && s_scanResults >= 0; }
+
+#if INW_DEV
+void testJoin(const char* ss, const char* pass) {
+  strlcpy(s_test.ssid, ss, sizeof(s_test.ssid));
+  strlcpy(s_test.pass, pass, sizeof(s_test.pass));
+  s_result[SAVED_MAX] = J_NONE;
+  if (!s_on) setEnabled(true);
+  s_scanning = s_scanWanted = false;
+  WiFi.disconnect();
+  join(SAVED_MAX);
+  s_nextTry = millis() + 20000;
+}
+#endif
 int scanCount() { return s_scanResults < 0 ? 0 : s_scanResults; }
 const char* scanSsid(int i) { static char b[33]; strlcpy(b, WiFi.SSID(i).c_str(), sizeof(b)); return b; }
 int scanRssi(int i) { return WiFi.RSSI(i); }
 bool scanOpen(int i) { return WiFi.encryptionType(i) == WIFI_AUTH_OPEN; }
+bool scanEnterprise(int i) { return WiFi.encryptionType(i) == WIFI_AUTH_WPA2_ENTERPRISE; }
 
 // ---- tile fetching --------------------------------------------------------------------
 struct Req { uint8_t z; int32_t x, y; };

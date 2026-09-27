@@ -15,14 +15,19 @@ namespace wifi {
   void setEnabled(bool on);
   bool enabled();
   bool connected();
-  const char* statusText();     // "home-net 192.168.1.40 -61 dBm" / "searching" / "off"
+  const char* statusText();     // "home-net 192.168.1.40 -61 dBm" / "joining home-net..." / "home-net: wrong password?"
+  const char* shortStatus();    // for a tile: "off" / the network / "wrong password?" / "searching"
   const char* ssid();
 
   // Saved networks
   uint8_t savedCount();
   const char* savedSsid(uint8_t i);
+  const char* savedState(uint8_t i);               // "connected" / "joining..." / how the last try failed / ""
   void save(const char* ssid, const char* pass);   // also connects
   void forget(uint8_t i);
+#if INW_DEV
+  void testJoin(const char* ssid, const char* pass);   // try once, nothing saved (USB "wifijoin")
+#endif
 
   // Scanning (asynchronous)
   void startScan();
@@ -31,6 +36,7 @@ namespace wifi {
   const char* scanSsid(int i);
   int  scanRssi(int i);
   bool scanOpen(int i);
+  bool scanEnterprise(int i);   // a username + password login (work, school): not supported
 
   // Tile fetching. request() is cheap and de-duplicated; pollTile() hands the
   // main loop one finished download at a time to write out.

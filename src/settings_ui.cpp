@@ -372,6 +372,7 @@ public:
     if (!wifi::scanDone() || !wifi::scanCount()) return;
     const String ss = wifi::scanSsid(_f);
     if (!ss.length()) return;
+    if (wifi::scanEnterprise(_f)) { nav.toast("needs a username login (work/school): not supported"); return; }
     if (wifi::scanOpen(_f)) { wifi::save(ss.c_str(), ""); nav.pop(); nav.toast("joining open network"); return; }
     prompt("Password", ss, "", 63, [ss](const String& pw) {
       wifi::save(ss.c_str(), pw.c_str());
@@ -381,7 +382,7 @@ public:
   }
   void draw(Canvas& g) override {
     const Theme& t = nav.theme();
-    drawHeader(g, "Wi-Fi networks", wifi::scanDone() ? "r = rescan" : "scanning...");
+    drawHeader(g, "Wi-Fi networks", wifi::scanDone() ? "2.4 GHz only   r = rescan" : "scanning...");
     const int n = wifi::scanCount();
     if (!wifi::scanDone()) { g.setTextColor(t.dim, t.bg); g.drawString("looking for networks...", 14, L::BODY_Y + 10); return; }
     if (!n) { g.setTextColor(t.dim, t.bg); g.drawString("nothing found. r to rescan", 14, L::BODY_Y + 10); return; }
@@ -398,7 +399,7 @@ public:
       g.setTextColor(on ? t.green : t.white, bg);
       g.drawString(nm[0] ? nm : "(hidden)", 12, y + 2);
       char r[24];
-      snprintf(r, sizeof(r), "%s %d dBm", wifi::scanOpen(i) ? "open" : "", wifi::scanRssi(i));
+      snprintf(r, sizeof(r), "%s %d dBm", wifi::scanOpen(i) ? "open" : wifi::scanEnterprise(i) ? "login" : "", wifi::scanRssi(i));
       g.setTextColor(t.dim, bg);
       g.drawString(r, L::W - 12 - g.textWidth(r), y + 2);
     }
@@ -420,7 +421,8 @@ static void wifiMenu() {
     if (wifi::savedCount()) v.header("saved networks");
     for (uint8_t i = 0; i < wifi::savedCount(); i++) {
       const String ss = wifi::savedSsid(i);
-      v.action(ss, [i, ss] { confirm("Forget " + ss + "?", "", [i] { wifi::forget(i); nav.toast("forgotten"); }); });
+      v.value(ss, [i]() -> String { return String(wifi::savedState(i)); },
+              [i, ss] { confirm("Forget " + ss + "?", "to fix a password, scan + join it again", [i] { wifi::forget(i); nav.toast("forgotten"); }); });
     }
     v.header("map tiles");
     v.toggle("download tiles while viewing map", [] { return ui_settings.tileFetch; },
@@ -790,7 +792,7 @@ static String subProfile() { return g_node ? String(P().node_name) : String("");
 static String subRadio()   { return g_node ? String(P().freq, 3) + (P().isRepeatEn() ? "  rpt" : "") : String(""); }
 static String subChans()   { int n = 0; if (g_node) for (int i = 0; i < MAX_GROUP_CHANNELS; i++) { ChannelDetails c; if (g_node->getChannel(i, c) && c.name[0]) n++; } return String(n); }
 static String subBle()     { return bleConnected() ? "linked" : bleEnabled() ? "on" : "off"; }
-static String subWifi()    { return !wifi::enabled() ? "off" : wifi::connected() ? String(wifi::ssid()) : String("searching"); }
+static String subWifi()    { return String(wifi::shortStatus()); }
 static String subGps()     { return !ui_settings.gpsOn ? "off" : gps.hasFix() ? "fix" : "searching"; }
 static String subNotify()  { return ui_settings.dnd ? "dnd" : "on"; }
 static String subNone()    { return ""; }
