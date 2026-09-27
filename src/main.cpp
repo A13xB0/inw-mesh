@@ -997,6 +997,14 @@ static void usbCommands() {
     if (!strcmp(line, "ext")) { ext::report(); continue; }
     // What the motion sensor sees: which way is down, how still, face down or not.
     if (!strcmp(line, "motion")) { motion::debugPrint(); continue; }
+    // "mandown N": the man-down alarm's minutes (0 off), without the menu. "mandown N usb"
+    // lets it count while plugged in, which it otherwise waits out.
+    if (!strncmp(line, "mandown ", 8)) {
+      field::manDownOnUsb = strstr(line, "usb") != nullptr;
+      motion::setManDownMin((uint8_t)atoi(line + 8));
+      motion::debugPrint();
+      continue;
+    }
     dimmer.note();
     if (!strcmp(line, "stores")) {
       storeReport();
@@ -1581,7 +1589,11 @@ void loop() {
     // screen and let the next bump unlock it. Their events were read above so they
     // don't pile up; here they are dropped. A raise lands on the lock face, which
     // goes dark again in 10 s if nobody unlocks it.
-    if (btnPress || raised) { if (ui_settings.lockOnSleep) app::lock(); screenWakeAnimated(); }
+    if (btnPress || raised) {
+      if (raised && !btnPress) Serial.println("[motion] raised into view: screen on");
+      if (ui_settings.lockOnSleep) app::lock();
+      screenWakeAnimated();
+    }
   } else if (detents || press || anyKey || btnTap) {
     // With wheel-only unlock, on the lock screen only a wheel press counts as someone
     // using it, so stray keys can't keep a pocketed screen lit.

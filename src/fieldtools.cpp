@@ -329,6 +329,7 @@ private:
   void cancel() {
     if (!s_armAt) return;
     s_armAt = 0;
+    motion::noteActivity();                  // someone is there: the man-down clock starts over
     sirenOff();
     logs.add(LOG_INFO, "sos countdown cancelled");
     nav.pop();
@@ -382,8 +383,10 @@ void sosNoteButton() {
 // it's on a desk or a nightstand, not on someone who is down.
 static constexpr uint32_t MD_WARN_MS = 60000;
 static bool s_mdWarn = false;
-static const ToneStep MD_CHIRP[] = {{2400, 70, 3200}};
-static const Jingle MD_CHIRP_J = {"chirp", MD_CHIRP, 1, WAVE_SQUARE, false};
+// Two quick rising chirps: still "a chirp", but long enough to carry (one 70 ms blip
+// went unheard on a pager).
+static const ToneStep MD_CHIRP[] = {{2000, 90, 2900}, {0, 60}, {2000, 90, 2900}};
+static const Jingle MD_CHIRP_J = {"chirp", MD_CHIRP, 3, WAVE_SQUARE, false};
 
 static uint32_t mdLimit() { return motion::manDownMin() * 60000UL; }
 static uint32_t mdLeft() {
@@ -391,12 +394,18 @@ static uint32_t mdLeft() {
   return s >= l ? 0 : (l - s + 999) / 1000;
 }
 
+#if INW_DEV
+bool manDownOnUsb = false;
+#else
+static constexpr bool manDownOnUsb = false;
+#endif
+
 // Why it isn't counting, or nullptr when it is.
 static const char* manDownWaiting() {
   if (!motion::manDownMin()) return "off";
   if (s_sos) return "waiting: the SOS is on";
   if (!motion::running()) return "motion sensor not responding";
-  if (app::pluggedIn()) return "waiting: on the charger";
+  if (app::pluggedIn() && !manDownOnUsb) return "waiting: on the charger";
   return nullptr;
 }
 
@@ -454,7 +463,7 @@ static void manDownTick() {
     mdEnd();
     char why[40];
     snprintf(why, sizeof(why), "no movement for %u min", motion::manDownMin());
-    logs.add(LOG_WARN, "man-down: %s, sos countdown", why);
+    logs.add(LOG_WARN, "man-down: sos countdown, still %u min", motion::manDownMin());   // log lines hold 43
     sosArm(why);
     return;
   }
@@ -472,8 +481,11 @@ static void manDownTick() {
   if (!lastChirp || millis() - lastChirp >= every) {
     lastChirp = millis();
     haptic.buzz(1);
-    jingle.setVolume(max<uint8_t>(ui_settings.volume, 70));
+    jingle.setVolume(100);                   // as loud as the SOS siren
     jingle.play(&MD_CHIRP_J);
+#if INW_DEV
+    Serial.printf("[man-down] chirp, %lus left, %s\n", (unsigned long)(left / 1000), jingle.playing() ? "playing" : "NOT playing");
+#endif
   }
 }
 

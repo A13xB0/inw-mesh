@@ -19,6 +19,9 @@ namespace field {
   bool sosOn();
   void sosArm(const char* why = nullptr);   // the countdown screen: sends unless cancelled
   void sosNoteButton();        // main.cpp: every side-button press
+#if INW_DEV
+  extern bool manDownOnUsb;    // USB "mandown N usb": count while plugged in, for testing over the cable
+#endif
 
   // Breadcrumb trail: where we've been, drawn on the map, with the way back.
   struct TrailPt { float lat, lon; };

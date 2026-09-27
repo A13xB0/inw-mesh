@@ -78,18 +78,28 @@ void sample(const Vec& a) {
   // on its edge, so it never counts there.
   if (tilt > 150 && shake < 0.05f) { if (!faceSince) faceSince = now | 1; }
   else if (tilt < 135 || shake > 0.15f) faceSince = 0;
+  const bool wasFace = face;
   face = faceSince && now - faceSince > 2000;
+  if (face != wasFace) Serial.println(face ? "[motion] face down" : "[motion] face up");
 
   // Raise to wake: held steady in view (the screen tipped 15-80 degrees back from
-  // flat) for a fifth of a second, after being held quite differently (35+ degrees)
-  // within the last 1.6 s: out of a pocket, up off a table, turned over. Walking
-  // never holds it steady, and putting it down ends flat, not in view.
+  // flat, the right way up and not on its side) for a fifth of a second, after
+  // being held quite differently (35+ degrees) within the last 1.6 s: out of a
+  // pocket, up off a table, turned over. Walking never holds it steady, putting it
+  // down ends flat, and a pocket mostly holds it upside down or on its side.
+  // Held to read, the top edge is up: y reads negative (measured on a pager).
   ring[ringAt] = att;
   ringAt = (ringAt + 1) % RING;
   if (ringN < RING) ringN++;
-  if (steadyN >= 5 && tilt >= 15 && tilt <= 80) {
+  const bool upright = att.y < 0 && fabsf(att.x) < 0.6f;
+  if (steadyN >= 5 && tilt >= 15 && tilt <= 80 && upright) {
     for (int i = 0; i < ringN; i++) {
-      if (degBetween(ring[i], att) >= 35) { raised = true; ringN = ringAt = 0; break; }
+      if (degBetween(ring[i], att) >= 35) {
+        raised = true;
+        ringN = ringAt = 0;
+        Serial.printf("[motion] lifted into view (tilt %.0f)\n", tilt);
+        break;
+      }
     }
   }
 }
@@ -183,11 +193,13 @@ void begin() {
 void tick() {
   if (!streaming) return;
   static uint32_t polled = 0;
-  const uint32_t now = millis();
-  if (now - polled < 40) return;
-  polled = now;
+  if (millis() - polled < 40) return;
+  polled = millis();
   imu.update();
   // Nothing for 5 s: set the accelerometer going again, a few times, and say so.
+  // The time is read after update(), whose samples move lastSample past any
+  // earlier reading (and an unsigned difference would wrap).
+  const uint32_t now = millis();
   if (now - lastSample > 5000 && now - kickedAt > 5000 && kicks < 3) {
     kickedAt = now;
     kicks++;
