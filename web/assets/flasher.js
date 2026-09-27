@@ -61,6 +61,49 @@ if (panel) {
     logPre.scrollTop = logPre.scrollHeight;
   }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const isFirefox = /Firefox\//.test(navigator.userAgent);
+  const infoOf = (p) => { try { return p.getInfo() || {}; } catch (e) { return {}; } };
+  const sameDevice = (p, info) => {
+    const i = infoOf(p);
+    return !!info.usbVendorId && i.usbVendorId === info.usbVendorId && i.usbProductId === info.usbProductId;
+  };
+  // The browser couldn't open the port at all (as opposed to the chip not answering).
+  const openFailure = (e) => /\bopen\b|already open|InvalidStateError|NetworkError|device (has been )?lost/i
+    .test(((e && e.name) || "") + " " + ((e && e.message) || String(e)));
+
+  /* The pager can drop off USB and come back as a different port object: opening
+     the port restarts it on some computers (Macs especially), and it re-appears.
+     The old object then fails every open - one person got "Failed to open serial
+     port" nine times in a row that way, "try again" included. Find it again by
+     its USB ids: the reconnect we saw, or another granted port that matches. */
+  async function refindPort(waitMs) {
+    const info = infoOf(port);
+    const until = Date.now() + (waitMs || 0);
+    for (;;) {
+      if (usb.last && usb.last !== port && sameDevice(usb.last, info)) {
+        port = usb.last;
+        log("[flasher] the pager came back as a new port - using that");
+        return true;
+      }
+      let ports = [];
+      try { ports = await navigator.serial.getPorts(); } catch (e) { ports = []; }
+      const other = ports.find((p) => p !== port && p !== usb.gone && sameDevice(p, info));
+      if (other) {
+        port = other;
+        log("[flasher] found the pager on another port - using that");
+        return true;
+      }
+      if (Date.now() >= until) return false;
+      await sleep(250);
+    }
+  }
+
+  // Ours from an earlier step and somehow still open: let go before esptool opens it.
+  async function letGo() {
+    if (port && (port.readable || port.writable)) {
+      try { await Promise.race([port.close(), sleep(1500)]); } catch (e) {}
+    }
+  }
 
   /* esptool-js 0.6 takes each image as a Uint8Array. Older versions took a
      "binary string", and handing 0.6 a string is silent and destructive: the
@@ -109,6 +152,7 @@ if (panel) {
     try {
       await port.open({ baudRate: 115200, bufferSize: 4096 });
     } catch (e) {
+      log("[flasher] couldn't open the port to ask it: " + ((e && e.message) || e));
       return text;                       // busy, or already in the ROM loader
     }
     let reader = null;
@@ -131,8 +175,13 @@ if (panel) {
     } catch (e) {
       /* whatever we heard is what we use */
     } finally {
-      try { if (reader) { await reader.cancel(); reader.releaseLock(); } } catch (e) {}
-      try { await port.close(); } catch (e) {}
+      // Each step on its own: a cancel that throws must not leave the lock held,
+      // or close() fails and the port stays open for the write that follows.
+      if (reader) {
+        try { await Promise.race([reader.cancel(), sleep(1000)]); } catch (e) {}
+        try { reader.releaseLock(); } catch (e) {}
+      }
+      try { await Promise.race([port.close(), sleep(1500)]); } catch (e) {}
     }
     return text;
   }
@@ -340,25 +389,33 @@ if (panel) {
       log("[flasher] " + wanted + " v" + version + ": " + parts.map((p) => p.name).join(", "));
 
       show("Writing… keep the cable in", "busy");
-      let chip = null, lastErr = null;
+      // Asking it what it was may have restarted it (see refindPort): if it
+      // dropped off USB meanwhile, wait for it to come back and use that.
+      if (usb.gone === port) await refindPort(8000);
+      let chip = null, lastErr = null, openFails = 0;
       /* The ladder: compressed (what esptool itself uses, and quicker), then
          slower for cables and hubs that can't hold 921600, then a plain write.
          Every attempt is read back and checked (md5 above), so a rung only
          counts as done if the chip holds exactly what was sent. */
-      for (const attempt of [{ baud: 921600, compress: true },
-                             { baud: 460800, compress: true, wait: 1500 },
-                             { baud: 115200, compress: true, wait: 3000 },
-                             { baud: 460800, compress: false, wait: 1500 }]) {
+      const ladder = [{ baud: 921600, compress: true },
+                      { baud: 460800, compress: true, wait: 1500 },
+                      { baud: 115200, compress: true, wait: 3000 },
+                      { baud: 460800, compress: false, wait: 1500 }];
+      for (const attempt of ladder) {
         try {
           if (attempt.wait) { say("That didn't take — trying a slower, simpler write. This one takes longer."); await sleep(attempt.wait); }
+          await letGo();
           chip = await writeIt(parts, attempt.baud, attempt.compress);
           lastErr = null;
           break;
         } catch (e) {
           lastErr = e;
           log("[flasher] attempt at " + attempt.baud + " failed: " + ((e && e.message) || e));
+          if (openFailure(e)) { openFails++; await letGo(); await refindPort(3000); }
         }
       }
+      // Not one attempt could even open the port: nothing was written.
+      if (lastErr && openFails === ladder.length) lastErr.portWouldNotOpen = true;
       if (lastErr) throw lastErr;
 
       // 4. did it come back up
@@ -372,6 +429,19 @@ if (panel) {
       if (/No port selected|cancelled|The port is already open/i.test(msg) && !port) {
         show("Nothing was written", "bad");
         say("No pager was picked, so nothing happened. Press start when you're ready.");
+      } else if (e && e.portWouldNotOpen) {
+        log("[flasher] failed: " + msg);
+        show("Couldn't open the pager's USB port", "bad");
+        say("Nothing was written, so the pager is just as it was. Unplug it, plug it back in, then press " +
+            "try again and pick the pager when your browser asks. " +
+            (isFirefox
+              ? "Firefox's USB support is new and doesn't work on every computer yet: if it still won't open, use Chrome or Edge."
+              : "If it still won't open, close anything else that could be using it: Arduino IDE, a serial monitor, " +
+                "or this page open in another tab."));
+        logBox.open = true;
+        again.hidden = false;
+        port = null;                     // a fresh pick hands us a port object that works
+        report("port-would-not-open", { kind: lastKind, error: msg, log: logPre.textContent.split("\n").slice(-30).join("\n") });
       } else {
         log("[flasher] failed: " + msg);
         show("That didn't finish", "bad");
@@ -446,6 +516,7 @@ if (panel) {
   /* Tell the developer, not the person standing there. Failures are worth knowing
      about even when nobody writes in; this is the same endpoint the help chat uses. */
   function report(what, detail) {
+    detail.browser = navigator.userAgent.slice(0, 160);
     try {
       fetch("/api/help/chat", {
         method: "POST",

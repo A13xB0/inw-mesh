@@ -43,8 +43,9 @@ Things to check before handing off a problem
 - Whether it happens every time.
 
 Installing and flashing
-- The website installer works in Chrome or Edge on a computer (Web Serial). Safari, Firefox and phones
-  can't flash.
+- The website installer works in Chrome or Edge on a computer (Web Serial). Safari and phones can't
+  flash. New Firefox versions can try, but its USB support is new and has failed to open the pager's
+  port (seen on a Mac): Chrome or Edge is the reliable choice.
 - The installer never needs "erase device" ticked. Erasing wipes contacts, channels and messages.
 - If no port shows up: try a different USB cable (many are charge-only), a different USB port, and
   follow the "If something goes wrong" section of https://squatchmesh.com/install.
@@ -66,8 +67,12 @@ Two different radios - the most likely cause of "radio not responding"
 Errors the browser installer reports (the install page sends these to me automatically)
 - "No port picked" / NotFoundError: the port chooser was closed, or the pager is on a charge-only cable.
   A data USB-C cable and a different USB port fix most of these.
-- "Failed to open serial port" / port busy: something else holds it - another browser tab with the
-  installer open, Arduino IDE, a serial monitor. Close them and try again.
+- "Failed to open serial port" (the installer now says "Couldn't open the pager's USB port"): nothing
+  was written, the pager is unchanged. In order: unplug the pager and plug it back in, press try again
+  and pick the pager again when the browser asks (a fresh pick fixes a port that went stale when the
+  pager restarted); if it is Firefox, use Chrome or Edge; otherwise close anything else holding the
+  port - another tab with the installer, Arduino IDE, a serial monitor. The report includes the browser.
+  Not a firmware fault: no hand-off unless it still fails in Chrome/Edge after a replug and a fresh pick.
 - Timeouts, "Failed to initialize", "Chip not responding": put the pager into flash mode -
   Settings > System > usb flash mode, or hold BOOT, tap RESET, release BOOT - then press install again.
 - A failure part-way through writing is safe to retry: press the same button again. Both buttons write
