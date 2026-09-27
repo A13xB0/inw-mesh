@@ -107,6 +107,7 @@ extern char g_screenTitle[32];   // ui.cpp: the last header drawn
 static uint32_t s_prefsDirtyAt = 0, s_uiDirtyAt = 0;
 static uint32_t s_kbFlashUntil = 0;
 static bool s_radioOk = false;
+static regions::Scan s_usbScan;    // USB "regions scan"
 static char s_radioFault[64] = "radio not responding";
 
 void markPrefsDirty() { s_prefsDirtyAt = millis() | 1; }
@@ -954,7 +955,9 @@ static void usbCommands() {
     // regions request to a repeater in direct range (by name, or the one heard
     // most recently with no hops) and the answer prints when it comes.
     if (!strncmp(line, "regions", 7) && g_node) {
-      if (!strncmp(line, "regions ask", 11)) {
+      if (!strcmp(line, "regions scan")) {         // what "ask repeaters nearby" does, printed
+        Serial.println(s_usbScan.start() ? "[regions] listening for repeaters in range..." : "[regions] radio busy");
+      } else if (!strncmp(line, "regions ask", 11)) {
         const char* want = line[11] == ' ' ? line + 12 : "";
         ContactInfo best, c;
         bool found = false;
@@ -1667,6 +1670,13 @@ void loop() {
   // 1000+ contacts, with the screen frozen for it.
   if (s_uiDirtyAt && millis() - s_uiDirtyAt > 2000) { s_uiDirtyAt = 0; ui_settings.save(); }
   if (g_shotAt && (int32_t)(millis() - g_shotAt) >= 0) { g_shotAt = 0; takeScreenshot(); }
+  // USB "regions scan": each answer prints as it comes (onNodeEvent), the tally at the end.
+  if (s_usbScan.running() && s_usbScan.tick() && s_usbScan.done()) {
+    Serial.printf("[regions] done: %d answered, %d pass the whole mesh, %d silent, %d added to contacts\n",
+                  s_usbScan.answered, s_usbScan.wholeMesh, s_usbScan.silent, s_usbScan.added);
+    for (int i = 0; i < s_usbScan.count(); i++)
+      Serial.printf("[regions]   #%-20s %d\n", s_usbScan.name(i), s_usbScan.servedBy(i));
+  }
   usbCommands();
 
   lap(6);
