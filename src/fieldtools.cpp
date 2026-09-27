@@ -444,7 +444,12 @@ static void manDownTick() {
   static uint32_t lastChirp = 0;
   if (s_armAt || manDownWaiting()) { mdEnd(); return; }
   const uint32_t still = motion::stillFor(), limit = mdLimit();
-  if (still + MD_WARN_MS < limit) { mdEnd(); return; }
+  const uint32_t warn = min(MD_WARN_MS, limit / 2);   // the dev build's 1-minute setting warns for 30 s
+  if (still + warn < limit) {
+    if (s_mdWarn) nav.toast("man-down alarm reset");   // moved, or a key: say it was heard
+    mdEnd();
+    return;
+  }
   if (still >= limit) {
     mdEnd();
     char why[40];
