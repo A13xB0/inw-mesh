@@ -55,6 +55,7 @@ int ringN = 0, ringAt = 0;
 int steadyN = 0;                        // samples in a row that barely moved
 
 bool raised = false;
+bool faceTiming = false;                // lying face down, timing since faceSince
 uint32_t faceSince = 0;
 bool face = false;
 uint32_t movedAt = 0;                   // the last movement or input
@@ -87,11 +88,13 @@ void sample(const Vec& a) {
   if (shake > 0.10f || degBetween(att, anchor) > 12) { movedAt = now; anchor = att; }
 
   // Face down: flat, screen to the table, still for 2 s. A pocket holds the pager
-  // on its edge, so it never counts there.
-  if (tilt > 150 && shake < 0.05f) { if (!faceSince) faceSince = now | 1; }
-  else if (tilt < 135 || shake > 0.15f) faceSince = 0;
+  // on its edge, so it never counts there. (A flag beside the time, not "now | 1":
+  // on an even millisecond that is one ahead of now, and the unsigned difference
+  // read as 2 s already passed.)
+  if (tilt > 150 && shake < 0.05f) { if (!faceTiming) { faceTiming = true; faceSince = now; } }
+  else if (tilt < 135 || shake > 0.15f) faceTiming = false;
   const bool wasFace = face;
-  face = faceSince && now - faceSince > 2000;
+  face = faceTiming && now - faceSince > 2000;
   if (face != wasFace) Serial.println(face ? "[motion] face down" : "[motion] face up");
 
   // Raise to wake: held steady in view (the screen tipped 15-80 degrees back from
@@ -171,7 +174,7 @@ void stream(bool on) {
     streaming = false;
   }
   primed = raised = face = false;
-  faceSince = 0;
+  faceTiming = false;
 }
 
 void apply() {
