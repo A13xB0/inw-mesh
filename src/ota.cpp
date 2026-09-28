@@ -12,13 +12,21 @@
 #include "logstore.h"
 #include "ui.h"
 #include "backlight.h"     // dimmer.idleFor(): only check for updates in a gap
+#include "board_pins.h"    // OTA_SUBDIR, OTA_BOARD
+#include "fieldtools.h"    // field::wantsGps(): an SOS or range test isn't interrupted
+#include "node.h"          // bleConnected()
+#include <Preferences.h>
 
 extern LogStore logs;
 void inwProgress(const char* what, uint32_t done, uint32_t total);   // main.cpp
 
 namespace ota {
 
-static const char* SITE = "https://bambam1121.github.io/inw-mesh/firmware/";
+// Each board has its own folder; the pager's is the original, top-level one.
+#ifndef OTA_SUBDIR
+#define OTA_SUBDIR ""
+#endif
+static const char* SITE = "https://bambam1121.github.io/inw-mesh/firmware/" OTA_SUBDIR;
 
 // Public half of the release signing key. Releases signed with anything else
 // are refused.
@@ -27,19 +35,28 @@ static const uint8_t RELEASE_KEY[32] = {
   0x47, 0xb2, 0xec, 0xe6, 0xa6, 0x00, 0x56, 0xa2, 0xb7, 0x8f, 0x97, 0x29, 0xef, 0xb4, 0x9b, 0x12,
 };
 
-static uint8_t s_sha[32], s_sig[64];     // from the last good check
+static uint8_t s_sha[32];                // from the last good check
+#ifndef OTA_BOARD
+static uint8_t s_sig[64];
+#endif
 
 bool supported() {
   const esp_partition_t* next = esp_ota_get_next_update_partition(nullptr);
   return next && next != esp_ota_get_running_partition();
 }
 
-// "1.2.10" > "1.2.9"
+// "1.2.10" > "1.2.9", and a release comes after its betas:
+// "1.2.2" > "1.2.2-beta2" > "1.2.2-beta1". Pager versions have no suffix.
+static void parseVersion(const char* s, int v[4]) {
+  sscanf(s, "%d.%d.%d", &v[0], &v[1], &v[2]);
+  const char* b = strstr(s, "-beta");
+  v[3] = b ? atoi(b + 5) : 1000000;
+}
 static bool isNewer(const char* remote, const char* local) {
-  int r[3] = {0}, l[3] = {0};
-  sscanf(remote, "%d.%d.%d", &r[0], &r[1], &r[2]);
-  sscanf(local, "%d.%d.%d", &l[0], &l[1], &l[2]);
-  for (int i = 0; i < 3; i++) if (r[i] != l[i]) return r[i] > l[i];
+  int r[4] = {0}, l[4] = {0};
+  parseVersion(remote, r);
+  parseVersion(local, l);
+  for (int i = 0; i < 4; i++) if (r[i] != l[i]) return r[i] > l[i];
   return false;
 }
 
@@ -53,18 +70,24 @@ static bool fromHex(const char* s, uint8_t* out, size_t n) {
   return true;
 }
 
-Info check() {
+Info check() { return check(ui_settings.betaUpdates); }
+
+Info check(bool beta) {
   Info info;
   if (!wifi::connected()) { strlcpy(info.error, "connect to wi-fi first", sizeof(info.error)); return info; }
   WiFiClientSecure tls;
   tls.setInsecure();                     // authenticity comes from the signature, not TLS
   HTTPClient http;
   http.setTimeout(8000);
-  info.beta = ui_settings.betaUpdates;
+  info.beta = beta;
   String url = String(SITE) + (info.beta ? "ota-beta.json" : "ota.json");
   if (!http.begin(tls, url)) { strlcpy(info.error, "couldn't reach the update site", sizeof(info.error)); return info; }
   const int code = http.GET();
   if (code != 200) {
+#ifdef OTA_BOARD
+    if (code == 404) strlcpy(info.error, "no updates for this device yet", sizeof(info.error));
+    else
+#endif
     snprintf(info.error, sizeof(info.error), "update site said %d", code);
     http.end();
     return info;
@@ -76,6 +99,31 @@ Info check() {
   strlcpy(info.version, doc["version"] | "", sizeof(info.version));
   strlcpy(info.notes, doc["notes"] | "", sizeof(info.notes));
   info.size = doc["size"] | 0;
+#ifdef OTA_BOARD
+  // Boards after the pager are signed with "sig3" alone, which binds the board as
+  // well as the hash, version and size. Their ota.json has neither of the pager's
+  // signatures, so no pager - however old its firmware - can take one for its own;
+  // and the pager's ota.json has no sig3, so this board never takes the pager's.
+  uint8_t sig3[64];
+  if (!info.version[0] || !info.size || !fromHex(doc["sha256"] | "", s_sha, 32) || !fromHex(doc["sig3"] | "", sig3, 64)) {
+    strlcpy(info.error, doc["sig2"].is<const char*>() ? "update is not for this device" : "update info incomplete",
+            sizeof(info.error));
+    return info;
+  }
+  char tail[48];
+  const int tl = snprintf(tail, sizeof(tail), "%s\n%lu", info.version, (unsigned long)info.size);
+  static const char PREFIX3[] = "squatch-ota-v3\n" OTA_BOARD "\n";
+  uint8_t msg3[sizeof(PREFIX3) - 1 + 32 + sizeof(tail)];
+  size_t m3 = 0;
+  memcpy(msg3, PREFIX3, sizeof(PREFIX3) - 1); m3 += sizeof(PREFIX3) - 1;
+  memcpy(msg3 + m3, s_sha, 32); m3 += 32;
+  if (tl > 0 && tl < (int)sizeof(tail)) { memcpy(msg3 + m3, tail, tl); m3 += tl; }
+  if (tl <= 0 || tl >= (int)sizeof(tail) || !ed25519_verify(sig3, msg3, m3, RELEASE_KEY)) {
+    strlcpy(info.error, "update is not for this device", sizeof(info.error));
+    logs.add(LOG_WARN, "ota: %s is not signed for " OTA_BOARD ", ignored", info.version);
+    return info;
+  }
+#else
   if (!info.version[0] || !info.size || !fromHex(doc["sha256"] | "", s_sha, 32) || !fromHex(doc["sig"] | "", s_sig, 64)) {
     strlcpy(info.error, "update info incomplete", sizeof(info.error));
     return info;
@@ -101,6 +149,7 @@ Info check() {
     logs.add(LOG_WARN, "ota: bad signature on %s, ignored", info.version);
     return info;
   }
+#endif
   info.ok = true;
   info.newer = isNewer(info.version, FW_VERSION);
   return info;
@@ -165,24 +214,100 @@ const char* install(const Info& info) {
   return "restarting";
 }
 
-// Once per boot, a while after Wi-Fi comes up, so it doesn't compete with startup.
+// ---- installing by itself ------------------------------------------------------------------------
+// Kept in its own NVS namespace, not the settings blob, so its layout is untouched.
+static int8_t s_auto = -1;                  // -1: not read yet
+
+bool autoInstall() {
+  if (s_auto < 0) {
+    Preferences p;
+    s_auto = 1;                             // on unless it's been turned off
+    if (p.begin("inw-ota", true)) { s_auto = p.getBool("auto", true) ? 1 : 0; p.end(); }
+  }
+  return s_auto == 1;
+}
+
+void setAutoInstall(bool on) {
+  s_auto = on ? 1 : 0;
+  Preferences p;
+  if (p.begin("inw-ota", false)) { p.putBool("auto", on); p.end(); }
+}
+
+void announce() {
+  Preferences p;
+  if (!p.begin("inw-ota", false)) return;
+  const String was = p.getString("ran", "");
+  if (was != FW_VERSION) {
+    p.putString("ran", FW_VERSION);
+    if (was.length()) {
+      logs.add(LOG_INFO, "updated: %s -> %s", was.c_str(), FW_VERSION);
+      nav.banner("Updated", (String("now on ") + FW_VERSION + ", everything kept").c_str(), 6000);
+    }
+  }
+  p.end();
+}
+
+// Nobody is using it: screen off and untouched for two minutes, enough battery to
+// finish (or on a charger), and nothing running that a restart would cut short.
+static bool idleForUpdate() {
+  return dimmer.asleep() && dimmer.idleFor() > 120000UL &&
+         (app::pluggedIn() || app::batteryPct() >= 30) &&
+         !field::wantsGps() &&                  // an SOS, range test or trail
+         !bleConnected();                        // the phone app mid-sync
+}
+
+// A while after Wi-Fi comes up, so it doesn't compete with startup; once per boot, or
+// every 6 hours where updates install by themselves.
 void tick() {
-  static bool done = false;
-  static uint32_t connectedAt = 0;
-  if (done || !ui_settings.autoUpdateCheck) return;
+  static bool checked = false, pending = false;
+  static uint32_t connectedAt = 0, lastCheck = 0;
+  static Info found;
+  const bool autoOn = autoInstall();
+  if (!ui_settings.autoUpdateCheck && !autoOn) return;
   if (!wifi::connected()) { connectedAt = 0; return; }
   if (!connectedAt) { connectedAt = millis(); return; }
   if (millis() - connectedAt < 20000) return;
+
+  if (pending) {
+    if (!autoOn) { pending = false; return; }  // turned off meanwhile: offer it next boot
+    if (!idleForUpdate()) return;
+    pending = false;
+    logs.add(LOG_INFO, "installing %s by itself", found.version);
+    const char* r = install(found);            // restarts when it works
+    logs.add(LOG_WARN, "update %s: %s", found.version, r);
+    lastCheck = millis();                      // try again at the next check
+    return;
+  }
+
+  if (checked && !(autoOn && millis() - lastCheck > 6UL * 3600UL * 1000UL)) return;
   // check() blocks for the best part of a second (TLS handshake, then the
   // fetch). Doing that mid-scroll is felt as a stutter, so wait for a gap in
-  // what the person is doing - it is a once-per-boot check and can wait.
+  // what the person is doing - it can wait.
   if (dimmer.idleFor() < 3000) return;
-  done = true;
-  const Info info = check();
+  checked = true;
+  lastCheck = millis();
+  Info info = check();
+#ifdef OTA_BOARD
+  const bool autoThis = autoOn;                // every build of this board is a beta for now
+#else
+  // The pager puts in only official releases by itself. On beta updates it looks
+  // at the release feed too: a newer release installs itself, a beta still asks.
+  if (autoOn && info.beta) {
+    const Info rel = check(false);
+    if (rel.ok && rel.newer) info = rel;
+  }
+  const bool autoThis = autoOn && !info.beta;
+#endif
   if (!info.ok) { logs.add(LOG_INFO, "update check: %s", info.error); return; }
   if (!info.newer) { logs.add(LOG_INFO, "update check: up to date (%s)", FW_VERSION); return; }
   logs.add(LOG_INFO, "update available: %s", info.version);
   if (!supported()) { nav.banner("Update available", "reinstall once over usb to enable wi-fi updates", 6000); return; }
+  if (autoThis) {                              // no questions: it goes in when nobody's using it
+    found = info;
+    pending = true;
+    logs.add(LOG_INFO, "%s installs itself when idle", info.version);
+    return;
+  }
   const String body = String("version ") + info.version + (info.notes[0] ? String(" - ") + info.notes : String("")) +
                       ". takes about a minute; messages pause while it downloads.";
   confirm(String("Update to ") + info.version + "?", body, [info] { nav.toast(install(info), 5000); });

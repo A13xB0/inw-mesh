@@ -14,6 +14,7 @@
 #include "notify.h"
 #include "statusbar.h"
 #include "ota.h"
+#include "bugreport.h"
 #include <SD.h>
 #include <time.h>
 #include "board_pins.h"
@@ -1343,6 +1344,7 @@ void setup() {
                                  "interrupt watchdog", "task watchdog", "watchdog", "deep sleep",
                                  "brownout", "sdio"};
   const int rr = (int)esp_reset_reason();
+  report::capture();            // the last run's log lines, before this run's first one
   logs.add(rr == ESP_RST_POWERON || rr == ESP_RST_SW ? LOG_INFO : LOG_WARN, "boot %s, last reset: %s",
            FW_VERSION, rr < 11 ? RESET[rr] : "?");
   ui_settings.load();
@@ -1415,6 +1417,7 @@ void setup() {
     display.fillRect(0, 194, L::W, 28, theme.bg);
   }
   bootStep("storage", fsOk);
+  if (fsOk) report::begin();       // restarted from a crash: file what happened
   const bool sdOk = sdMount();
   bootStep("sd card", true, sdOk ? "mounted" : "none");   // no card is normal
   // NVS came up empty (wiped, or another firmware had the board): bring the
@@ -1472,6 +1475,7 @@ void setup() {
 
   nav.begin(&display, &theme);
   nav.push(makeHomeView());
+  ota::announce();                                // "Updated, now on X" after an update restarted it
   // A new node is named after its key prefix; ask for a real name once.
   if (g_node) {
     char hex[10];
@@ -1669,6 +1673,7 @@ void loop() {
   if (s_hizUntil && (int32_t)(millis() - s_hizUntil) > 0) { s_hizUntil = 0; battery.setHiZ(false); Serial.println("[batt] charger input back on"); }
   power::tick();
   ota::tick();
+  report::tick();
   ext::tick();
   motion::tick();
   nodeLoop();

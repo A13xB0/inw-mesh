@@ -26,7 +26,17 @@ namespace ota {
   };
 
   bool supported();            // false on the older one-slot partition table
-  Info check();                // blocking, a second or two; needs Wi-Fi
+  Info check();                // blocking, a second or two; needs Wi-Fi (the channel Settings picks)
+  Info check(bool beta);       // one channel: beta or official releases
   const char* install(const Info& info);   // blocking with a progress screen; reboots on success
-  void tick();                 // from loop: the once-per-boot automatic check
+  void tick();                 // from loop: the automatic check (and install, below)
+
+  // Updates install by themselves: checked on Wi-Fi when it connects and every 6
+  // hours, installed once it's idle - screen off and untouched 2 minutes, charging
+  // or 30%+, no SOS or phone sync going. On by default; Settings > System turns it
+  // off. The pager takes only official releases this way (a beta still asks); the
+  // T-Deck, whose builds are all betas for now, takes each one.
+  bool autoInstall();
+  void setAutoInstall(bool on);
+  void announce();             // setup(): after a restart into a new version, say so
 }
