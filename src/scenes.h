@@ -1,5 +1,10 @@
 // Lock-screen scenes, one per theme. Each draws the band between the status bar
 // and y = 172; the clock and summary text go underneath.
+//
+// lx, ly lean the scene with the pager (motion::lean, -1..1): each layer slides
+// downhill by its depth - the stars most, the moon and far hills less, the ground
+// the character stands on not at all - which reads as depth. 0, 0 draws it as
+// it always was (the T-Deck has no motion sensor, and screen changes pass 0).
 
 #pragma once
 #include <math.h>
@@ -25,20 +30,34 @@ inline uint32_t hash(int32_t x) {
   return h;
 }
 
-inline void stars(lgfx::LovyanGFX& d, uint16_t c, float phase, int count, int maxY) {
+// How far a layer at `depth` px slides for a lean of l (-1..1): downhill, and half as
+// far up and down as across (the band is short).
+inline int slideX(float l, float depth) { return (int)lroundf(-l * depth); }
+inline int slideY(float l, float depth) { return (int)lroundf(-l * depth * 0.5f); }
+
+// Depths, in px at a full lean: the further back, the further it slides.
+constexpr float SKY = 18, MOON = 14, CURTAINS = 12, FAR = 11, FAIRY = 6;
+
+inline void stars(lgfx::LovyanGFX& d, uint16_t c, float phase, int count, int maxY, int ox = 0, int oy = 0) {
   for (int i = 0; i < count; i++) {
     const uint32_t h = hash(i + 7);
-    const int x = h % 480, y = 20 + (h >> 9) % (maxY - 20);
+    int x = (int)(h % 480) + ox;
+    if (x < 0) x += 480; else if (x >= 480) x -= 480;             // the sky wraps round
+    const int y = 20 + (int)((h >> 9) % (maxY - 20)) + oy;
+    if (y < 19) continue;                                         // not under the status bar
     const bool on = ((int)(phase * 0.2f) + i) % 7 != 0;          // an occasional twinkle
     if (on) d.drawPixel(x, y, (i % 5 == 0) ? mix(c, 0xFFFF, 0.6f) : c);
   }
 }
 
 // ---- INW: mountains, scrolling pines, the walking sasquatch ---------------------------
-inline void inw(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread) {
-  d.fillTriangle(0, 120, 90, 66, 160, 120, t.line);
-  d.fillTriangle(120, 124, 230, 58, 340, 124, t.line);
-  d.fillTriangle(300, 120, 400, 72, 480, 120, t.line);
+inline void inw(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread,
+                float lx = 0, float ly = 0) {
+  // The mountains, far off. The outer two reach past the edges so a lean shows no gap.
+  const int mx = slideX(lx, FAR), my = slideY(ly, FAR);
+  d.fillTriangle(-12 + mx, 120 + my, 90 + mx, 66 + my, 160 + mx, 120 + my, t.line);
+  d.fillTriangle(120 + mx, 124 + my, 230 + mx, 58 + my, 340 + mx, 124 + my, t.line);
+  d.fillTriangle(300 + mx, 120 + my, 400 + mx, 72 + my, 492 + mx, 120 + my, t.line);
   const int span = 480 + 60;
   for (int i = 0; i < 14; i++) {
     int px = (int)(i * 46 - scroll);
@@ -52,19 +71,20 @@ inline void inw(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, b
 }
 
 // ---- Blocks: block terrain, square moon, a blocky explorer -----------------------------
-inline void blocks(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread) {
+inline void blocks(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread,
+                   float lx = 0, float ly = 0) {
   constexpr int B = 12;
   const uint16_t dirt = rgb(0x7a5230), dirtDark = rgb(0x5c3c22), grass = t.green, grassDark = t.greenDim;
   const uint16_t leaf = rgb(0x2f6b1f), trunk = rgb(0x6b4a2b), cloud = rgb(0x2c3442);
-  stars(d, t.dim, phase, 40, 110);
-  const int mx = 40 + (int)fmodf(scroll * 0.05f, 400.0f);
-  d.fillRect(mx, 30, 18, 18, rgb(0xefe7c4));
-  d.fillRect(mx + 4, 34, 4, 4, rgb(0xcfc6a0));
-  d.fillRect(mx + 10, 40, 3, 3, rgb(0xcfc6a0));
+  stars(d, t.dim, phase, 40, 110, slideX(lx, SKY), slideY(ly, SKY));
+  const int mx = 40 + (int)fmodf(scroll * 0.05f, 400.0f) + slideX(lx, MOON), my = 30 + slideY(ly, MOON);
+  d.fillRect(mx, my, 18, 18, rgb(0xefe7c4));
+  d.fillRect(mx + 4, my + 4, 4, 4, rgb(0xcfc6a0));
+  d.fillRect(mx + 10, my + 10, 3, 3, rgb(0xcfc6a0));
   for (int c = 0; c < 3; c++) {                                  // chunky clouds
     int cx = (int)(c * 190 - scroll * 0.3f);
-    cx = ((cx % 620) + 620) % 620 - 70;
-    const int cy = 55 + c * 14;
+    cx = ((cx % 620) + 620) % 620 - 70 + slideX(lx, FAR);
+    const int cy = 55 + c * 14 + slideY(ly, FAR);
     d.fillRect(cx, cy, 64, 10, cloud);
     d.fillRect(cx + 10, cy - 8, 36, 8, cloud);
   }
@@ -125,25 +145,28 @@ inline void heart(lgfx::LovyanGFX& d, int x, int y, uint16_t c) {
 }
 
 inline void hero(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread,
-                 uint8_t batteryPct, uint16_t unreadCount) {
-  stars(d, t.dim, phase, 50, 100);
-  d.fillCircle(400, 44, 13, rgb(0xe9eef5));
-  d.fillCircle(405, 40, 11, t.bg);
-  // Far hill with a castle.
+                 uint8_t batteryPct, uint16_t unreadCount, float lx = 0, float ly = 0) {
+  stars(d, t.dim, phase, 50, 100, slideX(lx, SKY), slideY(ly, SKY));
+  const int mx = slideX(lx, MOON), my = slideY(ly, MOON);
+  d.fillCircle(400 + mx, 44 + my, 13, rgb(0xe9eef5));
+  d.fillCircle(405 + mx, 40 + my, 11, t.bg);
+  // Far hill with a castle. The hill is sampled further along rather than moved, so
+  // it still meets both edges.
+  const int fx = slideX(lx, FAR), fy = slideY(ly, FAR);
   for (int x = 0; x < 480; x += 2) {
-    const int y = 118 + (int)(sinf((x + scroll * 0.2f) * 0.012f) * 12);
+    const int y = 118 + fy + (int)(sinf((x - fx + scroll * 0.2f) * 0.012f) * 12);
     d.fillRect(x, y, 2, GROUND - y, t.line);
   }
-  const int cx = 80 - (int)fmodf(scroll * 0.2f, 600.0f);
+  const int cx = 80 - (int)fmodf(scroll * 0.2f, 600.0f) + fx;
   if (cx > -80) {
     const uint16_t stone = mix(t.line, t.bg, 0.4f);
-    d.fillRect(cx, 84, 46, 34, stone);
-    d.fillRect(cx - 8, 72, 12, 46, stone);
-    d.fillRect(cx + 42, 72, 12, 46, stone);
-    d.fillTriangle(cx - 10, 72, cx - 2, 58, cx + 6, 72, stone);
-    d.fillTriangle(cx + 40, 72, cx + 48, 58, cx + 56, 72, stone);
-    d.fillRect(cx + 18, 100, 10, 18, t.bg);
-    d.fillRect(cx + 4, 90, 4, 5, t.amber);                         // a lit window
+    d.fillRect(cx, 84 + fy, 46, 34, stone);
+    d.fillRect(cx - 8, 72 + fy, 12, 46, stone);
+    d.fillRect(cx + 42, 72 + fy, 12, 46, stone);
+    d.fillTriangle(cx - 10, 72 + fy, cx - 2, 58 + fy, cx + 6, 72 + fy, stone);
+    d.fillTriangle(cx + 40, 72 + fy, cx + 48, 58 + fy, cx + 56, 72 + fy, stone);
+    d.fillRect(cx + 18, 100 + fy, 10, 18, t.bg);
+    d.fillRect(cx + 4, 90 + fy, 4, 5, t.amber);                    // a lit window
   }
   // Front hill.
   auto hill = [&](int x) { return 146 + (int)(sinf((x + scroll) * 0.018f) * 9); };
@@ -165,19 +188,21 @@ inline void hero(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, 
   d.drawLine(px + 14, g - 27, px + 19, g - 32, t.amber);            // hilt
   d.fillCircle(px - 2, g - 22, 6, t.blue);                          // shield
   d.drawCircle(px - 2, g - 22, 6, rgb(0xd8dee8));
-  // The fairy loops around them.
+  // The fairy loops around them. Nearer than the adventurer, so she slides the
+  // other way on a lean.
   const float fa = phase * 0.25f;
-  const int fx = px + 6 + (int)(cosf(fa) * 34), fy = g - 56 + (int)(sinf(fa * 1.7f) * 14);
+  const int nx = px + 6 - slideX(lx, FAIRY), ny = g - 56 - slideY(ly, FAIRY);
+  const int fx2 = nx + (int)(cosf(fa) * 34), fy2 = ny + (int)(sinf(fa * 1.7f) * 14);
   for (int k = 1; k <= 4; k++) {
     const float fb = fa - k * 0.18f;
-    d.drawPixel(px + 6 + (int)(cosf(fb) * 34), g - 56 + (int)(sinf(fb * 1.7f) * 14), mix(t.blue, t.bg, k * 0.2f));
+    d.drawPixel(nx + (int)(cosf(fb) * 34), ny + (int)(sinf(fb * 1.7f) * 14), mix(t.blue, t.bg, k * 0.2f));
   }
-  d.fillCircle(fx, fy, 5, mix(t.blue, t.bg, 0.6f));
-  d.fillCircle(fx, fy, 3, t.blue);
-  d.fillCircle(fx, fy, 1, 0xFFFF);
+  d.fillCircle(fx2, fy2, 5, mix(t.blue, t.bg, 0.6f));
+  d.fillCircle(fx2, fy2, 3, t.blue);
+  d.fillCircle(fx2, fy2, 1, 0xFFFF);
   const bool flap = ((int)(phase * 2)) % 2;
-  d.drawLine(fx - 2, fy - 1, fx - 6, fy - (flap ? 5 : 2), mix(t.blue, 0xFFFF, 0.5f));
-  d.drawLine(fx + 2, fy - 1, fx + 6, fy - (flap ? 5 : 2), mix(t.blue, 0xFFFF, 0.5f));
+  d.drawLine(fx2 - 2, fy2 - 1, fx2 - 6, fy2 - (flap ? 5 : 2), mix(t.blue, 0xFFFF, 0.5f));
+  d.drawLine(fx2 + 2, fy2 - 1, fx2 + 6, fy2 - (flap ? 5 : 2), mix(t.blue, 0xFFFF, 0.5f));
   // Hearts are the battery, gems are unread messages.
   const int full = (batteryPct + 10) / 20;
   for (int i = 0; i < 5; i++) heart(d, 8 + i * 18, 24, i < full ? t.red : t.line);
@@ -218,15 +243,18 @@ inline void auroraGround(lgfx::LovyanGFX& d, const Theme& t, float phase, float 
   drawSasquatch(d, t, 250, GROUND + dy, 80, phase, unread ? t.amber : t.green);   // walking, like INW: the pines scroll past
 }
 
-inline void aurora(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread) {
+inline void aurora(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread,
+                   float lx = 0, float ly = 0) {
   auroraLast() = {phase, scroll, unread};
-  stars(d, t.dim, phase, 70, 150);
+  stars(d, t.dim, phase, 70, 150, slideX(lx, SKY), slideY(ly, SKY));
   const float p = phase * 0.05f;
+  // The curtains are sampled further along rather than moved, so they still span the sky.
+  const int ax = slideX(lx, CURTAINS), ay = slideY(ly, CURTAINS);
   for (int band = 0; band < 2; band++) {
     const uint16_t c = band ? t.greenDim : t.green;
-    const int base = band ? 42 : 64;
+    const int base = (band ? 42 : 64) + ay;
     for (int x = 0; x < 480; x += 3) {
-      const float fx = x * 0.011f;
+      const float fx = (x - ax) * 0.011f;
       const int y = base + (int)(sinf(fx * (band ? 1.6f : 1.0f) + p * (band ? -1.3f : 1.0f)) * 16 + sinf(fx * 3.1f - p * 0.7f) * 6);
       const int len = 26 + (int)((sinf(fx * 2.3f + p * 1.9f) + 1) * 16);
       const float glow = 0.55f + 0.45f * sinf(fx * 1.7f + p * 2.4f);
@@ -236,9 +264,21 @@ inline void aurora(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll
       }
     }
   }
-  d.fillCircle(88, 40, 11, rgb(0xf2f5ff));
-  d.fillCircle(93, 36, 10, t.bg);
+  const int mx = slideX(lx, MOON), my = slideY(ly, MOON);
+  d.fillCircle(88 + mx, 40 + my, 11, rgb(0xf2f5ff));
+  d.fillCircle(93 + mx, 36 + my, 10, t.bg);
   auroraGround(d, t, phase, scroll, unread);
+}
+
+// The lock screen's scene for a theme style, leaning lx, ly.
+inline void lockScene(lgfx::LovyanGFX& d, const Theme& t, uint8_t style, float phase, float scroll, bool unread,
+                      uint8_t batteryPct, uint16_t unreadCount, float lx = 0, float ly = 0) {
+  switch (style) {
+    case STYLE_BLOCKS: blocks(d, t, phase, scroll, unread, lx, ly); break;
+    case STYLE_HERO:   hero(d, t, phase, scroll, unread, batteryPct, unreadCount, lx, ly); break;
+    case STYLE_AURORA: aurora(d, t, phase, scroll, unread, lx, ly); break;
+    default:           inw(d, t, phase, scroll, unread, lx, ly); break;
+  }
 }
 
 }  // namespace scenes

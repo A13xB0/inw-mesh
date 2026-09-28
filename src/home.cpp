@@ -8,6 +8,7 @@
 #include "backlight.h"
 #include "quips.h"
 #include "power.h"
+#include "motion.h"
 
 static Carousel s_carousel;
 
@@ -113,12 +114,7 @@ public:
     const Theme& t = nav.theme();
     drawStatusBar(d, t);
     const bool hasUnread = app::unread() > 0;
-    switch (t.style) {
-      case STYLE_BLOCKS: scenes::blocks(d, t, _phase, _scroll, hasUnread); break;
-      case STYLE_HERO:   scenes::hero(d, t, _phase, _scroll, hasUnread, app::batteryPct(), app::unread()); break;
-      case STYLE_AURORA: scenes::aurora(d, t, _phase, _scroll, hasUnread); break;
-      default:           scenes::inw(d, t, _phase, _scroll, hasUnread); break;
-    }
+    scenes::lockScene(d, t, t.style, _phase, _scroll, hasUnread, app::batteryPct(), app::unread(), _lx, _ly);
     d.fillRect(0, 172, L::W, L::H - 172, t.bg);
 
     d.setFont(&fonts::Font4);
@@ -158,6 +154,12 @@ public:
     _phase += 0.32f;
     _scroll += 2.0f;
     if (_scroll > 10000.0f) _scroll = 0;
+    // The scene leans with the pager (motion.h), eased so 25 samples a second draw
+    // smoothly at 30 frames.
+    float lx, ly;
+    motion::lean(lx, ly);
+    _lx += (lx - _lx) * 0.3f;
+    _ly += (ly - _ly) * 0.3f;
     dirty = true;
   }
   // By default only a wheel press unlocks: keys and wheel turns happen in a pocket,
@@ -174,6 +176,7 @@ private:
   }
   uint32_t _hintAt = 0;
   float _phase = 0, _scroll = 0;
+  float _lx = 0, _ly = 0;            // the lean drawn, eased toward motion::lean()
   uint32_t _step = 0, _quipAt = 0;
   char _quip[96] = "";
 };

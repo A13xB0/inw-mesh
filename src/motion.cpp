@@ -57,17 +57,25 @@ uint32_t faceSince = 0;
 bool face = false;
 uint32_t movedAt = 0;                   // the last movement or input
 Vec anchor = {0, 0, 1};                 // how it was held when it last moved
+Vec base = {0, 0, 1};                   // how it has been held lately (~2 s), for lean()
+float leanX = 0, leanY = 0;
 
 void sample(const Vec& a) {
   const uint32_t now = millis();
   if (now - lastSample > 3000) movedAt = now;    // after a gap, count stillness afresh
   lastSample = now;
   kicks = 0;
-  if (!primed) { primed = true; lp = a; anchor = unit(a); movedAt = now; ringN = ringAt = 0; }
+  if (!primed) { primed = true; lp = a; anchor = base = unit(a); movedAt = now; ringN = ringAt = 0; }
   lp = {lp.x + 0.3f * (a.x - lp.x), lp.y + 0.3f * (a.y - lp.y), lp.z + 0.3f * (a.z - lp.z)};
   const Vec d = {a.x - lp.x, a.y - lp.y, a.z - lp.z};
   shake = sqrtf(dot(d, d));
   const Vec att = unit(lp);
+
+  // Lean: the tip away from the last couple of seconds' average, so a scene moves
+  // while the pager moves and settles back when it is held still, at any angle.
+  base = {base.x + 0.02f * (att.x - base.x), base.y + 0.02f * (att.y - base.y), base.z + 0.02f * (att.z - base.z)};
+  leanX = constrain((att.x - base.x) * 3.0f, -1.0f, 1.0f);
+  leanY = constrain((att.y - base.y) * 3.0f, -1.0f, 1.0f);
   tilt = acosf(constrain(att.z * SCREEN_Z, -1.0f, 1.0f)) * 57.29578f;   // 0 face up, 90 on edge, 180 face down
   // Held still in a hand: a hand shakes 0.02-0.07 g here, a table under 0.005.
   steadyN = shake < 0.08f ? steadyN + 1 : 0;
@@ -241,6 +249,13 @@ void noteActivity() {
 }
 
 uint32_t stillFor() { return running() && primed ? millis() - movedAt : 0; }
+
+bool lean(float& x, float& y) {
+  if (!running() || !primed) { x = y = 0; return false; }
+  x = leanX;
+  y = leanY;
+  return true;
+}
 
 void debugPrint() {
   Serial.printf("[motion] %s  g %.3f %.3f %.3f  tilt %.0f  shake %.3f  still %lus  face %d  raise %d quiet %d mandown %u\n",

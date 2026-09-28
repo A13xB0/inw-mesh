@@ -24,6 +24,10 @@ namespace motion {
   bool faceDown();             // quiet when face down is on and it lies screen-down, still
   void noteActivity();         // a key, the wheel or the side button: someone is there
   uint32_t stillFor();         // ms without movement or input; 0 while it isn't running
+  // How far the pager has just been tipped, for scenes that lean with it: x along the
+  // screen, y up it, about -1..1 (1 = some 20 degrees), easing back to 0 over a couple
+  // of seconds once it is held still at any angle. false (and 0, 0) while not running.
+  bool lean(float& x, float& y);
 
   void debugPrint();           // USB "motion" (dev builds): what it sees right now
 }

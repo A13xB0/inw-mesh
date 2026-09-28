@@ -45,6 +45,7 @@
 #include "regional.h"
 #include "extport.h"
 #include "motion.h"
+#include "scenes.h"
 #if INW_DEV
 #include <CayenneLPP.h>
 namespace ext { void drawPage(Canvas& g, int down); void fake(); }
@@ -720,6 +721,20 @@ static void usbCommands() {
       Serial.write((const uint8_t*)buf.getBuffer(), L::W * L::H * 2);
       Serial.flush();
     };
+    // "leanshot S X Y": lock scene S (0 inw, 1 blocks, 2 hero, 3 aurora) leaning X, Y
+    // (-1..1) as a screenshot, for checking a scene's edges at full lean.
+    if (!strncmp(line, "leanshot ", 9)) {
+      char* p = line + 9;
+      const int st = (int)strtol(p, &p, 10);
+      const float lx = strtof(p, &p), ly = strtof(p, &p);
+      Canvas& g = nav.canvas();
+      g.fillScreen(theme.bg);
+      drawStatusBar(g, theme);
+      scenes::lockScene(g, theme, (uint8_t)st, 6.0f, 300.0f, false, 80, 0, lx, ly);
+      streamShot(g, g);
+      nav.invalidate();
+      continue;
+    }
     // Wi-Fi: "wifijoin SSID|PASS" tries once without saving anything, "wifiscan"
     // scans, "wifi" prints the state the screens show.
     if (!strncmp(line, "wifijoin ", 9)) {
