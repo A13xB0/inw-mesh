@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Releases &middot; Squatch Mesh</title>
-<meta name="description" content="Release history for Squatch Mesh, pulled live from GitHub.">
+<title>Downloads &middot; Squatch Mesh</title>
+<meta name="description" content="Download Squatch Mesh for the LilyGo T-Lora Pager or the T-Deck (beta). Install from your browser, or take the files.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css?v=7">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="canonical" href="https://squatchmesh.com/releases">
+<link rel="canonical" href="https://squatchmesh.com/downloads">
 <meta name="theme-color" content="#070b0a">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Squatch Mesh">
-<meta property="og:title" content="Releases - Squatch Mesh">
-<meta property="og:description" content="Release history for Squatch Mesh, pulled live from GitHub.">
-<meta property="og:url" content="https://squatchmesh.com/releases">
+<meta property="og:title" content="Downloads - Squatch Mesh">
+<meta property="og:description" content="Squatch Mesh for the LilyGo T-Lora Pager, and the T-Deck in beta. Install from your browser, or take the files.">
+<meta property="og:url" content="https://squatchmesh.com/downloads">
 <meta property="og:image" content="https://squatchmesh.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 </head>
@@ -38,20 +38,49 @@
 </header>
 
 <main id="main" class="wrap">
-  <div class="tag" style="margin-top:46px">releases</div>
-  <h1>What changed</h1>
-  <p class="sub">Pulled live from GitHub. Current stable: <b data-version>v1.1.x</b>.
-  Pagers on the beta channel see builds before they land here.</p>
+  <div class="tag" style="margin-top:46px">downloads</div>
+  <h1>Get Squatch Mesh</h1>
+  <p class="sub">Free and open source. Pick your device: the web installer does everything from Chrome or
+  Edge over USB, or take the files and flash them your own way.</p>
 
-  <div id="releases" style="margin-top:26px">
-    <div class="panel">Loading from GitHub&hellip;</div>
+  <div class="grid c2" style="margin-top:26px">
+    <div class="panel">
+      <div class="tag">stable</div>
+      <h3 style="margin-top:12px">LilyGo T-Lora Pager</h3>
+      <p class="sub" style="font-size:14px;margin:8px 0 0">The full firmware: messages, maps, themes and field
+      tools, on the pager's keyboard and wheel. Latest release: <b data-version>v1.2.x</b>.</p>
+      <p style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 0">
+        <a class="btn solid" href="/install">Install in your browser</a>
+        <a class="btn" href="https://github.com/BamBam1121/inw-mesh/releases/latest" rel="noopener">Files on GitHub</a>
+      </p>
+      <p class="sub" style="font-size:13px;margin:14px 0 0">Already running it? New versions come over Wi-Fi:
+      <b>Settings &rsaquo; System &rsaquo; check for updates</b>. Turn on <b>beta updates</b> there to get new
+      builds before they're released.</p>
+    </div>
+    <div class="panel">
+      <div class="tag" style="color:var(--amber);border-color:var(--amber)">beta</div>
+      <h3 style="margin-top:12px">LilyGo T-Deck and T-Deck Plus</h3>
+      <p class="sub" style="font-size:14px;margin:8px 0 0">Made for the touchscreen: your newest chats on the
+      home screen, swipe up to unlock, tap to answer. It runs on real T-Decks and is still new. Version
+      <b>1.2.2-beta2</b>.</p>
+      <p style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 0">
+        <a class="btn solid" href="/t-deck">Install in your browser</a>
+        <a class="btn" href="/tdeck/squatch-mesh-tdeck-1.2.2-beta2-full.bin" download>Download the .bin</a>
+      </p>
+      <p class="sub" style="font-size:13px;margin:14px 0 0">The .bin is one image, written at address 0x0 with
+      esptool or Espressif's web flasher: <a href="/t-deck#files">how</a>.</p>
+    </div>
   </div>
 
-  <div class="panel reveal" style="margin-top:20px">
-    <p class="sub" style="font-size:13px;margin:0">Every push is built by CI. A tagged version becomes the
-    stable release that the installer serves; everything else goes to the beta channel, so nothing reaches
-    people before it has run on real hardware.
-    <a href="https://github.com/BamBam1121/inw-mesh/commits/main">See all commits</a>.</p>
+  <div class="panel" style="margin-top:20px">
+    <p class="sub" style="font-size:14px;margin:0"><b>Which one do I have?</b> The pager is the wide one with
+    a scroll wheel on its side. The T-Deck is shaped like a small BlackBerry, with a trackball above the
+    keyboard. Coming from other firmware? Each install page says how to keep your keys and contacts first.</p>
+  </div>
+
+  <div class="panel" style="margin-top:20px;margin-bottom:60px">
+    <p class="sub" style="font-size:13px;margin:0">What changed in each version: <a href="/releases">releases</a>.
+    The source: <a href="https://github.com/BamBam1121/inw-mesh">GitHub</a> (GPL-3.0).</p>
   </div>
 </main>
 
