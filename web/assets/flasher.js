@@ -573,6 +573,23 @@ if (panel) {
   }
 
   function finish(kind, version, boot, before) {
+    const res = finishInner(kind, version, boot, before);
+    count(kind, version, res);
+  }
+
+  /* One line to the help desk per finished install, so we know how many people
+     use it: board, version, and how it went. Nothing about the device or person. */
+  function count(kind, version, result) {
+    try {
+      fetch("/api/help/count", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "install", board: BOARD, version: version || "", kind: kind || "", result: result })
+      }).catch(() => {});
+    } catch (e) { /* counting never gets in the way */ }
+  }
+
+  function finishInner(kind, version, boot, before) {
     const m = boot.match(/\[status\]\s+fw=(\S+)\s+radio=(\S+)\s+radio_ok=(\d)\s+contacts=(-?\d+)/);
     // Writing the app is not the same as running it: this board has two app
     // slots, and it has been seen coming back up on the old one. Trust what the
@@ -584,7 +601,7 @@ if (panel) {
       logBox.open = true;
       again.hidden = false;
       report("wrong-version", { wrote: version, running: m[1], kind: kind, log: boot.split("\n").slice(-25).join("\n") });
-      return;
+      return "wrong-version";
     }
     if (m && m[3] === "1") {
       show("Done — your pager is up", "ok");
@@ -592,7 +609,7 @@ if (panel) {
           (kind === "install" ? " A first install sets up storage on the first start, so give it a few minutes."
                               : " Your contacts, channels and messages are untouched."));
       if (startBtn) startBtn.textContent = "DONE";
-      return;
+      return "ok";
     }
     if (m) {
       show("It started, but the radio didn't", "bad");
@@ -607,7 +624,7 @@ if (panel) {
           boot.split("\n").slice(-25).join("\n") +
           "\nSay what is wrong and the single most useful thing to do next. Be brief.");
       }
-      return;
+      return "radio";
     }
     // Restarting over and over before the firmware says anything means there is no
     // runnable app in flash. Never call that a success.
@@ -618,13 +635,14 @@ if (panel) {
       logBox.open = true;
       again.hidden = false;
       report("boot-loop", { kind: kind, version: version, log: boot.split("\n").slice(-25).join("\n") });
-      return;
+      return "boot-loop";
     }
     // Silence is not failure: it has usually finished starting before we can listen.
     show("Written successfully", "ok");
     say("That wrote cleanly. The pager didn't answer afterwards, which is normal — it usually finishes " +
         "starting before the browser can listen. Look at the pager: if the screen is on and it isn't " +
         "restarting, you're done.");
+    return "written";
   }
 
   /* Tell the developer, not the person standing there. Failures are worth knowing
