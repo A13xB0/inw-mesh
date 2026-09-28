@@ -655,7 +655,8 @@ static void displayMenu() {
   // Lifting it into view lights the screen on the lock face (motion.h).
   m->toggle("raise to wake", [] { return motion::raiseToWake(); }, [] {
     motion::setRaiseToWake(!motion::raiseToWake());
-    if (motion::raiseToWake() && !motion::running()) nav.toast("motion sensor not responding", 3000);
+    if (motion::raiseToWake() && motion::paused()) nav.toast("starts when battery saver ends", 3000);
+    else if (motion::raiseToWake() && !motion::running()) nav.toast("motion sensor not responding", 3000);
   });
   nav.push(m);
 }
@@ -733,7 +734,8 @@ static void notifyMenu() {
   m->toggle("quiet when face down", [] { return motion::quietFaceDown(); }, [] {
     motion::setQuietFaceDown(!motion::quietFaceDown());
     if (motion::quietFaceDown())
-      nav.toast(motion::running() ? "lie it screen-down: messages stay quiet" : "motion sensor not responding", 3000);
+      nav.toast(motion::paused() ? "starts when battery saver ends"
+                : motion::running() ? "lie it screen-down: messages stay quiet" : "motion sensor not responding", 3000);
   });
   m->header("quiet hours");
   tg(*m, "quiet hours", &ui_settings.dndSchedule);

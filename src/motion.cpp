@@ -9,6 +9,7 @@
 #include <BoschFirmware.h>
 #include "board_pins.h"
 #include "logstore.h"
+#include "power.h"
 
 extern LogStore logs;
 
@@ -23,6 +24,7 @@ uint32_t kickedAt = 0;
 
 bool raiseOn = true, quietOn = false;
 uint8_t manMin = 0;
+bool saverOn = false;                   // battery saver: only the man-down alarm keeps the sensor
 
 struct Vec { float x, y, z; };
 float dot(const Vec& a, const Vec& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
@@ -173,7 +175,9 @@ void stream(bool on) {
 }
 
 void apply() {
-  const bool want = raiseOn || quietOn || manMin;
+  // Battery saver stops the sensor, unless the man-down alarm is on: it can't watch
+  // without it, and it is the one use here that is about safety.
+  const bool want = saverOn ? manMin != 0 : (raiseOn || quietOn || manMin);
   if (want && !loaded && !failed) load();
   stream(want);
 }
@@ -201,6 +205,11 @@ void begin() {
 }
 
 void tick() {
+  if (power::saver() != saverOn) {
+    saverOn = power::saver();
+    apply();
+    logs.add(LOG_INFO, "motion: battery saver %s, sensor %s", saverOn ? "on" : "off", streaming ? "running" : "stopped");
+  }
   if (!streaming) return;
   static uint32_t polled = 0;
   if (millis() - polled < 40) return;
@@ -222,9 +231,12 @@ bool running() { return streaming && millis() - lastSample < 3000; }
 
 const char* state() {
   if (failed) return "not responding";
-  if (running()) return "on";
+  if (running()) return saverOn ? "on for man-down (saver)" : "on";
+  if (saverOn && (raiseOn || quietOn)) return "paused: battery saver";
   return streaming ? "starting" : "off";
 }
+
+bool paused() { return saverOn; }
 
 bool raiseToWake() { return raiseOn; }
 bool quietFaceDown() { return quietOn; }
@@ -235,13 +247,14 @@ void setRaiseToWake(bool on) { raiseOn = on; if (on) failed = false; save(); app
 void setQuietFaceDown(bool on) { quietOn = on; if (on) failed = false; save(); apply(); }
 void setManDownMin(uint8_t m) { manMin = m; movedAt = millis(); if (m) failed = false; save(); apply(); }
 
+// In battery saver these three rest even when the man-down alarm keeps the sensor going.
 bool takeRaise() {
   const bool r = raised;
   raised = false;
-  return r && raiseOn && running();
+  return r && raiseOn && !saverOn && running();
 }
 
-bool faceDown() { return quietOn && running() && face; }
+bool faceDown() { return quietOn && !saverOn && running() && face; }
 
 void noteActivity() {
   movedAt = millis();
@@ -251,7 +264,7 @@ void noteActivity() {
 uint32_t stillFor() { return running() && primed ? millis() - movedAt : 0; }
 
 bool lean(float& x, float& y) {
-  if (!running() || !primed) { x = y = 0; return false; }
+  if (saverOn || !running() || !primed) { x = y = 0; return false; }
   x = leanX;
   y = leanY;
   return true;

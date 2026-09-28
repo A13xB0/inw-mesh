@@ -1012,6 +1012,8 @@ static void usbCommands() {
     if (!strcmp(line, "ext")) { ext::report(); continue; }
     // What the motion sensor sees: which way is down, how still, face down or not.
     if (!strcmp(line, "motion")) { motion::debugPrint(); continue; }
+    // "saver 1" / "saver 0": battery saver on or off, as the Battery menu does it.
+    if (!strncmp(line, "saver ", 6)) { power::setSaver(line[6] == '1'); motion::debugPrint(); continue; }
     // "mandown N": the man-down alarm's minutes (0 off), without the menu. "mandown N usb"
     // lets it count while plugged in, which it otherwise waits out.
     if (!strncmp(line, "mandown ", 8)) {

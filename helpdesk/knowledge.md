@@ -45,6 +45,11 @@ Motion sensor (1.2.2): raise to wake, quiet when face down, man-down alarm
   cancels: tell them to turn it off when they put the pager down for the day.
 - "motion sensor not responding" (at boot or in those menus): restart the pager. If it stays, hand off to
   the developer.
+- The lock screen's scene leans a little as the pager is tilted (stars and far hills slide, the character
+  stays): that's the motion sensor, on purpose.
+- Battery saver (20%, or turned on by hand) switches the motion sensor off: raise to wake, quiet when face
+  down and the tilting scene pause until it ends. The man-down alarm is the exception: if it's on, the
+  sensor keeps running for it alone. "starts when battery saver ends" on turning one of them on is why.
 - Download mode for flashing: hold middle (BOOT), tap left (reset), let go of middle.
 
 Sound, battery and screen (1.2.1)

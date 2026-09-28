@@ -136,7 +136,8 @@ static void enterSaver(bool automatic) {
   app::applyDisplay();
   nav.statusChanged();
   logs.add(LOG_INFO, "battery saver on at %u%%%s", battery.percent(), automatic ? "" : " (manual)");
-  nav.banner("Battery saver on", "gps, bluetooth and wi-fi are off. messages still work.", 6000);
+  // The motion sensor stops by itself (motion.cpp watches saver()).
+  nav.banner("Battery saver on", "gps, bluetooth, wi-fi and raise to wake are off. messages still work.", 6000);
 }
 
 static void exitSaver(const char* why) {

@@ -15,6 +15,9 @@ namespace motion {
   void tick();                 // loop()
   bool running();              // samples are coming in
   const char* state();         // "on", "off" or "not responding", for the menus and the log
+  // Battery saver pauses raise to wake, quiet when face down and the lean, and stops
+  // the sensor - unless the man-down alarm is on, which keeps it for itself.
+  bool paused();
 
   bool raiseToWake();          void setRaiseToWake(bool on);
   bool quietFaceDown();        void setQuietFaceDown(bool on);
