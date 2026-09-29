@@ -659,6 +659,9 @@ static void displayMenu() {
     if (motion::raiseToWake() && motion::paused()) nav.toast("starts when battery saver ends", 3000);
     else if (motion::raiseToWake() && !motion::running()) nav.toast("motion sensor not responding", 3000);
   });
+  // The lock screen's sasquatch and his speech bubble (squatch_talk.h).
+  m->toggle("sasquatch talks", [] { return !ui_settings.squatchQuiet; },
+            [] { ui_settings.squatchQuiet = !ui_settings.squatchQuiet; markUiDirty(); });
   nav.push(m);
 }
 

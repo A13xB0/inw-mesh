@@ -23,7 +23,8 @@ static bool s_fromNvs = false;
 static void adopt(UiSettings* s, const uint8_t* buf, size_t len) {
   size_t n = len;
   if (len < sizeof(UiSettings)) {
-    static const size_t ADDED[] = {offsetof(UiSettings, wifiOn), offsetof(UiSettings, tzZone)};
+    static const size_t ADDED[] = {offsetof(UiSettings, wifiOn), offsetof(UiSettings, tzZone),
+                                   offsetof(UiSettings, squatchQuiet)};   // after the 1.2.2 beta
     for (size_t b : ADDED) if (len >= b) n = b;
   }
   memcpy((void*)s, buf, min(n, sizeof(UiSettings)));

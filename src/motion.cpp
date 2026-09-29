@@ -62,6 +62,12 @@ uint32_t movedAt = 0;                   // the last movement or input
 Vec anchor = {0, 0, 1};                 // how it was held when it last moved
 Vec base = {0, 0, 1};                   // how it has been held lately (~2 s), for lean()
 float leanX = 0, leanY = 0;
+// A shake: 3 jolts of 0.45 g+ within 0.6 s. One jolt is a bump or the pager set
+// down; a hand holding it stays under 0.1 g.
+uint32_t shakeWinAt = 0, shakeAt = 0;
+uint8_t shakeN = 0;
+float shakeWinPeak = 0, shakePeak = 0;
+bool shaken = false;
 
 void sample(const Vec& a) {
   const uint32_t now = millis();
@@ -82,6 +88,13 @@ void sample(const Vec& a) {
   tilt = acosf(constrain(att.z * SCREEN_Z, -1.0f, 1.0f)) * 57.29578f;   // 0 face up, 90 on edge, 180 face down
   // Held still in a hand: a hand shakes 0.02-0.07 g here, a table under 0.005.
   steadyN = shake < 0.08f ? steadyN + 1 : 0;
+
+  if (shake > 0.45f) {
+    if (!shakeN || now - shakeWinAt > 600) { shakeWinAt = now; shakeN = 0; shakeWinPeak = 0; }
+    shakeN++;
+    if (shake > shakeWinPeak) shakeWinPeak = shake;
+    if (shakeN >= 3) { shaken = true; shakeAt = now; shakePeak = shakeWinPeak; shakeN = 0; }
+  }
 
   // Man-down: a real jolt, or turned 12 degrees since it last moved. Breathing and
   // a table's hum stay under both.
@@ -255,6 +268,13 @@ bool takeRaise() {
   const bool r = raised;
   raised = false;
   return r && raiseOn && !saverOn && running();
+}
+
+bool takeShake(float& peak) {
+  const bool s = shaken && millis() - shakeAt < 1000;   // an old one (screen was off) is dropped
+  shaken = false;
+  peak = s ? shakePeak : 0;
+  return s && !saverOn && running();
 }
 
 bool faceDown() { return quietOn && !saverOn && running() && face; }

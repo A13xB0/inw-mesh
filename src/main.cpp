@@ -47,6 +47,7 @@
 #include "extport.h"
 #include "motion.h"
 #include "scenes.h"
+#include "squatch_talk.h"
 #if INW_DEV
 #include <CayenneLPP.h>
 namespace ext { void drawPage(Canvas& g, int down); void fake(); }
@@ -737,6 +738,25 @@ static void usbCommands() {
       g.fillScreen(theme.bg);
       drawStatusBar(g, theme);
       scenes::lockScene(g, theme, (uint8_t)st, 6.0f, 300.0f, false, 80, 0, lx, ly);
+      streamShot(g, g);
+      nav.invalidate();
+      continue;
+    }
+    // "talkshot S K LIFT": lock scene S with the sasquatch saying a line of kind K
+    // (squatch_talk.h), LIFT px into a hop, as a screenshot.
+    if (!strncmp(line, "talkshot ", 9)) {
+      char* p = line + 9;
+      const int st = (int)strtol(p, &p, 10);
+      const int k = (int)strtol(p, &p, 10), lift = (int)strtol(p, &p, 10);
+      Canvas& g = nav.canvas();
+      g.fillScreen(theme.bg);
+      drawStatusBar(g, theme, false);
+      scenes::mascotLift() = lift;
+      scenes::lockScene(g, theme, (uint8_t)st, 6.0f, 300.0f, false, 80, 0, 0, 0);
+      scenes::mascotLift() = 0;
+      int ax, ay;
+      talk::anchor((uint8_t)st, lift, ax, ay);
+      talk::bubble(g, theme, ax, ay, talk::line((talk::Kind)constrain(k, 0, talk::KIND_COUNT - 1), 3), 1.0f);
       streamShot(g, g);
       nav.invalidate();
       continue;

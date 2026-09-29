@@ -9,6 +9,8 @@
 #include "quips.h"
 #include "power.h"
 #include "motion.h"
+#include "squatch_talk.h"
+#include "regional.h"
 
 static Carousel s_carousel;
 
@@ -109,12 +111,17 @@ private:
 // ---------------------------------------------------------------------------------
 class LockView : public View {
 public:
+  // What's already waiting when it locks isn't news to the sasquatch.
+  LockView() : _wasPlugged(app::pluggedIn()), _seenUnread(app::unread()) {}
   bool isLock() override { return true; }
   void draw(Canvas& d) override {
     const Theme& t = nav.theme();
     drawStatusBar(d, t, false);          // the big clock below is the time here
     const bool hasUnread = app::unread() > 0;
+    scenes::mascotLift() = _lift;         // mid-hop after a shake
     scenes::lockScene(d, t, t.style, _phase, _scroll, hasUnread, app::batteryPct(), app::unread(), _lx, _ly);
+    scenes::mascotLift() = 0;
+    drawTalk(d, t);
     d.fillRect(0, 172, L::W, L::H - 172, t.bg);
 
     d.setFont(&fonts::Font4);
@@ -151,6 +158,11 @@ public:
     if (dimmer.asleep() || dimmer.dimmed()) return;
     if (millis() - _step < 33) return;
     _step = millis();
+    // How long the lock face had been dark (or dim): across lock screens, since a new
+    // one is made each time it locks again.
+    const uint32_t gap = litAt() ? _step - litAt() : 0xFFFFFFFFUL;
+    litAt() = _step;
+    if (!ui_settings.squatchQuiet) chatter(gap);
     _phase += 0.32f;
     _scroll += 2.0f;
     if (_scroll > 10000.0f) _scroll = 0;
@@ -174,11 +186,106 @@ private:
     _hintAt = millis();
     nav.toast("press the wheel to unlock");
   }
+
+  // ---- the sasquatch talks (squatch_talk.h) ------------------------------------------
+  static constexpr uint32_t SAY_MS = 3500, POP_MS = 160, QUIET_MS = 6000, HOP_MS = 380;
+
+  // Start a line `delayMs` from now. A shake always gets its say; anything else waits
+  // for the bubble on screen and a few quiet seconds after it.
+  void say(const char* text, uint32_t delayMs = 0, bool force = false) {
+    const uint32_t now = millis();
+    if (!force && (_saying || (int32_t)(now - _quietUntil) < 0)) return;
+    strlcpy(_say, text, sizeof(_say));
+    _sayAt = now + delayMs;
+    _saying = true;
+    dirty = true;
+  }
+
+  static uint32_t& litAt() { static uint32_t v = 0; return v; }   // the lock face's last lit frame
+
+  static int localHour() {
+    if (!app::timeValid()) return 12;
+    const time_t t = (time_t)app::now() + (time_t)regional::offsetMin(app::now()) * 60;
+    struct tm tm;
+    gmtime_r(&t, &tm);
+    return tm.tm_hour;
+  }
+
+  // Once a frame while the lock face is lit. gap: how long it had been dark (or dim).
+  void chatter(uint32_t gap) {
+    const uint32_t now = millis();
+    const uint16_t un = app::unread();
+    const bool plugged = app::pluggedIn();
+    if (gap > 3000) {
+      // Just lit up. A message that woke it, a low battery, or - after a good while
+      // dark (or now and then) - hello for the time of day. After the wake animation.
+      if (un > _seenUnread) say(talk::line(talk::MESSAGE, un - _seenUnread), 400);
+      else if (app::batteryPct() < 15 && !plugged) say(talk::line(talk::LOW_BATT), 400);
+      else if (gap > 15UL * 60UL * 1000UL || random(4) == 0) {
+        const int h = localHour();
+        say(talk::line(h >= 5 && h < 11 ? talk::MORNING : h < 17 ? talk::DAY : h < 22 ? talk::EVENING : talk::LATE), 400);
+      }
+      _seenUnread = un;
+      _wasPlugged = plugged;
+      _leaning = false;
+    }
+    // Shaken: he says so, and hops - twice for a hard one. A third shake in a few
+    // seconds gets the "okay, okay".
+    float peak;
+    if (motion::takeShake(peak)) {
+      if (now - _shakeWinAt > 8000) { _shakes = 0; _shakeWinAt = now; }
+      const bool again = ++_shakes >= 3;
+      if (again) _shakes = 0;
+      say(talk::line(again ? talk::SHAKE_AGAIN : peak > 1.3f ? talk::SHAKE_HARD : talk::SHAKE), 0, true);
+      _hopAt = now;
+      _hops = peak > 1.3f ? 2 : 1;
+    }
+    if (un > _seenUnread) say(talk::line(talk::MESSAGE, un - _seenUnread));
+    _seenUnread = un;
+    if (plugged && !_wasPlugged) say(talk::line(talk::PLUG), 900);   // after the charging splash
+    _wasPlugged = plugged;
+    // Held tipped well over for a second or so (the scene is sliding downhill).
+    if (fabsf(_lx) > 0.85f || fabsf(_ly) > 0.85f) {
+      if (!_leaning) { _leaning = true; _leanAt = now; }
+      else if (now - _leanAt > 1200 && (int32_t)(now - _leanOkAt) >= 0) {
+        say(talk::line(talk::LEAN));
+        _leanOkAt = now + 60000;
+      }
+    } else _leaning = false;
+    // The hop: one (or two) quick arcs off the ground.
+    if (_hops) {
+      const uint32_t e = now - _hopAt;
+      if (e >= HOP_MS * _hops) { _hops = 0; _lift = 0; }
+      else _lift = (int)(14.0f * sinf(3.14159f * (float)(e % HOP_MS) / HOP_MS));
+    }
+    // The bubble ends; a few quiet seconds before the next unforced line.
+    if (_saying && (int32_t)(now - (_sayAt + SAY_MS)) >= 0) { _saying = false; _quietUntil = now + QUIET_MS; }
+  }
+
+  void drawTalk(Canvas& d, const Theme& t) {
+    if (!_saying || ui_settings.squatchQuiet) return;
+    const uint32_t now = millis();
+    if ((int32_t)(now - _sayAt) < 0) return;                 // not started yet
+    const uint32_t e = now - _sayAt;
+    if (e >= SAY_MS) return;
+    int ax, ay;                                              // just above his head
+    talk::anchor(t.style, _lift, ax, ay);
+    const float grow = e < POP_MS ? (float)e / POP_MS : e > SAY_MS - POP_MS ? (float)(SAY_MS - e) / POP_MS : 1.0f;
+    talk::bubble(d, t, ax, ay, _say, grow);
+  }
+
   uint32_t _hintAt = 0;
   float _phase = 0, _scroll = 0;
   float _lx = 0, _ly = 0;            // the lean drawn, eased toward motion::lean()
   uint32_t _step = 0, _quipAt = 0;
   char _quip[96] = "";
+  // the talking sasquatch
+  char _say[40] = "";
+  bool _saying = false, _leaning = false, _wasPlugged = false;
+  uint32_t _sayAt = 0, _quietUntil = 0, _shakeWinAt = 0, _hopAt = 0, _leanAt = 0, _leanOkAt = 0;
+  uint16_t _seenUnread = 0;
+  uint8_t _shakes = 0, _hops = 0;
+  int _lift = 0;
 };
 
 View* makeHomeView() { return new HomeView(); }

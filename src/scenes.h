@@ -38,6 +38,10 @@ inline int slideY(float l, float depth) { return (int)lroundf(-l * depth * 0.5f)
 // Depths, in px at a full lean: the further back, the further it slides.
 constexpr float SKY = 18, MOON = 14, CURTAINS = 12, FAR = 11, FAIRY = 6;
 
+// How far the sasquatch is off the ground right now, px: the lock screen makes him
+// hop when the pager is shaken (home.cpp). 0 the rest of the time.
+inline int& mascotLift() { static int v = 0; return v; }
+
 inline void stars(lgfx::LovyanGFX& d, uint16_t c, float phase, int count, int maxY, int ox = 0, int oy = 0) {
   for (int i = 0; i < count; i++) {
     const uint32_t h = hash(i + 7);
@@ -67,7 +71,7 @@ inline void inw(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, b
     d.fillTriangle(px, GROUND - 4, px + 9, GROUND - 4 - ph, px + 18, GROUND - 4, t.greenDim);
   }
   d.drawFastHLine(0, GROUND, 480, t.greenDim);
-  drawSasquatch(d, t, 250, GROUND, 88, phase, unread ? t.amber : t.green);
+  drawSasquatch(d, t, 250, GROUND - mascotLift(), 88, phase, unread ? t.amber : t.green);
 }
 
 // ---- Blocks: block terrain, square moon, a blocky explorer -----------------------------
@@ -240,7 +244,7 @@ inline void auroraGround(lgfx::LovyanGFX& d, const Theme& t, float phase, float 
     d.fillTriangle(x, GROUND + dy, x + 7, GROUND - h + dy, x + 14, GROUND + dy, pine);
   }
   d.drawFastHLine(0, GROUND + dy, 480, t.line);
-  drawSasquatch(d, t, 250, GROUND + dy, 80, phase, unread ? t.amber : t.green);   // walking, like INW: the pines scroll past
+  drawSasquatch(d, t, 250, GROUND + dy - mascotLift(), 80, phase, unread ? t.amber : t.green);   // walking, like INW: the pines scroll past
 }
 
 inline void aurora(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll, bool unread,

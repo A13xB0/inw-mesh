@@ -87,6 +87,7 @@ struct UiSettings {
   // land in what older builds saved as struct padding, which reads back as 0.
   bool     hideHashBytes = false;     // chat: leave the hash size ("2B") off the hop count
   uint8_t  io9Mode       = 0;         // top header IO9: 0 untouched, 1 flash on messages, 2 on while unread
+  bool     squatchQuiet  = false;     // lock screen: the sasquatch's speech bubble off (it talks by default)
 
   void load();
   void save();
