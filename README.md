@@ -12,7 +12,7 @@ firmware.
 **T-Deck beta:** https://squatchmesh.com/t-deck &middot;
 **Help:** https://squatchmesh.com/help
 
-![Aurora lock screen, animated](web/assets/img/anim-aurora-v3.webp)
+![Aurora lock screen, animated](web/assets/img/anim-aurora-v4.webp)
 
 ## Themes
 
@@ -22,10 +22,10 @@ changes, the card style, the sounds, the vibration and the charging splash.
 
 | | Lock screen | Home |
 |---|---|---|
-| **Squatch** | ![Squatch lock](web/assets/img/anim-squatch-v3.webp) | ![Squatch home](docs/img/home-inw.png) |
-| **Blocks** | ![Blocks lock](web/assets/img/anim-blocks-v3.webp) | ![Blocks home](docs/img/home-blocks.png) |
-| **Hero** | ![Hero lock](web/assets/img/anim-hero-v3.webp) | ![Hero home](docs/img/home-hero.png) |
-| **Aurora** | ![Aurora lock](web/assets/img/anim-aurora-v3.webp) | ![Aurora home](docs/img/home-aurora.png) |
+| **Squatch** | ![Squatch lock](web/assets/img/anim-squatch-v4.webp) | ![Squatch home](docs/img/home-inw.png) |
+| **Blocks** | ![Blocks lock](web/assets/img/anim-blocks-v4.webp) | ![Blocks home](docs/img/home-blocks.png) |
+| **Hero** | ![Hero lock](web/assets/img/anim-hero-v4.webp) | ![Hero home](docs/img/home-hero.png) |
+| **Aurora** | ![Aurora lock](web/assets/img/anim-aurora-v4.webp) | ![Aurora home](docs/img/home-aurora.png) |
 
 ## Features
 
