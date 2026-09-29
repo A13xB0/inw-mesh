@@ -190,3 +190,14 @@ T-Deck beta (1.2.2-beta6 and later)
 - The same problem reports and daily check-in as the pager, and the same switch to turn them off.
 - It has a Bluetooth console for the developer's tools (admin password only); phones won't list it in
   Bluetooth settings, which is normal.
+
+T-Deck 1.2.4-beta1 (released 2026-09-29, the current T-Deck beta)
+- The talking sasquatch on the lock face (as on the pager), with his new look. On the T-Deck you tap him
+  instead of shaking: he hops and says something; three taps quickly and he sees stars. Tapping anywhere
+  else on the lock face still says "swipe up to unlock". Settings > Display > "sasquatch talks" turns it off.
+- Notifications can be tapped: a message banner opens that conversation (a new-contact banner opens
+  People); swipe a banner up to dismiss it. On the lock face a tap never unlocks: it says "swipe up to
+  open it", and the swipe that unlocks opens the conversation.
+- With no SD card, the map now shows the tiles it downloads over Wi-Fi (kept in memory, not saved).
+- The T-Deck has no motion sensor, so the pager's raise to wake, stay on while held and shake reactions
+  don't apply to it.
