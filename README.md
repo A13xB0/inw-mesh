@@ -1,65 +1,96 @@
 # Squatch Mesh
 
-Standalone MeshCore firmware for the LilyGo T-Lora Pager, built for the Inland
-Northwest mesh but usable on any MeshCore network.
+Free, open-source MeshCore firmware for the LilyGo T-Lora Pager, and the T-Deck in
+beta. Made in the Inland Northwest, usable on any MeshCore network.
 
-The pager runs a full MeshCore companion node, so it works on its own (keyboard,
-wheel, screen) and still pairs with the MeshCore phone app over Bluetooth like
-stock firmware.
+The pager runs a full MeshCore companion node: it works on its own (keyboard, wheel,
+screen) and still pairs with the MeshCore phone app over Bluetooth like stock
+firmware.
 
 **Website:** https://squatchmesh.com &middot;
 **Install from your browser:** https://squatchmesh.com/install &middot;
-**Help and feedback:** https://squatchmesh.com/help
+**T-Deck beta:** https://squatchmesh.com/t-deck &middot;
+**Help:** https://squatchmesh.com/help
 
-![Aurora lock screen, animated](web/assets/img/anim-aurora-v2.webp)
+![Aurora lock screen, animated](web/assets/img/anim-aurora-v3.webp)
 
 ## Themes
 
-Each theme changes the colours, the lock-screen scene, the card style, the
-sounds, the vibration, the charging indicator and the plug-in chime.
-(Lock screens are the pager's own animation; home screens are screenshots.)
+Each theme changes the colours, the lock-screen scene and its character, the screen
+changes, the card style, the sounds, the vibration and the charging splash.
+(Lock screens are the firmware's own drawing; home screens are screenshots.)
 
 | | Lock screen | Home |
 |---|---|---|
-| **Squatch** | ![Squatch lock](web/assets/img/anim-squatch-v2.webp) | ![Squatch home](docs/img/home-inw.png) |
-| **Blocks** | ![Blocks lock](web/assets/img/anim-blocks-v2.webp) | ![Blocks home](docs/img/home-blocks.png) |
-| **Hero** | ![Hero lock](web/assets/img/anim-hero-v2.webp) | ![Hero home](docs/img/home-hero.png) |
-| **Aurora** | ![Aurora lock](web/assets/img/anim-aurora-v2.webp) | ![Aurora home](docs/img/home-aurora.png) |
+| **Squatch** | ![Squatch lock](web/assets/img/anim-squatch-v3.webp) | ![Squatch home](docs/img/home-inw.png) |
+| **Blocks** | ![Blocks lock](web/assets/img/anim-blocks-v3.webp) | ![Blocks home](docs/img/home-blocks.png) |
+| **Hero** | ![Hero lock](web/assets/img/anim-hero-v3.webp) | ![Hero home](docs/img/home-hero.png) |
+| **Aurora** | ![Aurora lock](web/assets/img/anim-aurora-v3.webp) | ![Aurora home](docs/img/home-aurora.png) |
 
 ## Features
 
 - **Messages:** channels, DMs and room servers. Delivery ticks, retries, how many
   repeaters were heard passing a post on, @mentions, quick replies and colour emoji.
-  A red NEW line marks where unread messages start.
+  A red NEW line marks where unread messages start. Message details name the
+  repeaters a message came through, and hop counts show the repeater id size (4h 2B).
 - **Per-chat notifications:** any channel, contact or room can follow the global
   settings or be set to all, @mentions only, silent or muted.
-- **Contacts:** up to 1000, searchable, sortable by recency, name or distance.
+- **Region scopes,** as in the MeshCore app: a region per channel or a default for
+  everything, and "discover regions" asks the repeaters in range what they carry.
+- **Contacts:** up to 2000, searchable, sortable by recency, name or distance.
   Repeater and room admin with login, status, telemetry, trace and a console.
 - **Map:** offline tiles from the SD card, with every contact that shares a
   position. Missing tiles download while you're on Wi-Fi.
 - **Tools:** discover nearby repeaters, recently heard nodes, radio stats, a
-  packet sniffer, GPS status, screenshots to SD.
-- **Wi-Fi:** saved networks, internet time, map tiles.
-- **Wi-Fi updates:** the pager checks for a new release on start (or from
-  Settings > System) and asks before installing. Releases are signed; the pager
-  verifies the signature and the download before switching, and keeps the old
-  version if anything goes wrong. Contacts, keys and settings are untouched.
+  packet sniffer, GPS status, screenshots to SD, and field tools: a range test, an
+  SOS beacon (with a 20 s countdown to cancel) and a breadcrumb trail.
+- **The talking sasquatch:** the lock screen's character has a speech bubble. He
+  reacts to a real shake (and hops), says hello for the time of day when you pick
+  the pager up, and speaks up for a new message, the charger and a low battery. 165
+  lines, no repeats until he's said them all. The 1.2.4 beta redraws him with fur, a
+  face, blinking and a mouth that moves as he talks, waving, yawning and more.
+- **Motion sensor:** raise to wake, quiet when face down, and a man-down alarm; the
+  lock scene leans as you tip the pager. The 1.2.4 beta adds *stay on while held*:
+  held up to be read, the screen doesn't time out.
+- **Updates install by themselves:** on Wi-Fi it checks every six hours and puts a
+  new official release in when the pager is idle. Betas always ask. Releases are
+  signed; the pager verifies the signature and the download before switching, and
+  keeps the old version if anything goes wrong. Contacts, keys and settings are
+  untouched.
+- **Problem reports:** after a crash or an error the pager sends the developer a
+  short report over Wi-Fi, and checks in once a day with just its board and version.
+  Never messages, contacts, keys or your position. Settings > System turns both off;
+  the [privacy page](https://squatchmesh.com/privacy) has the details.
+- **First start:** radio region presets, a named time zone with daylight saving,
+  12/24 h and miles/km.
+- **Wi-Fi:** saved networks, says why it won't join, internet time, map tiles, and it
+  backs off when none of your networks is around.
+- **Top header:** plug-in I2C sensors (BME280, BMP280, SHT3x, SHT4x, AHT20, BH1750)
+  shown under Tools and sent as telemetry, and IO9 as a message LED or buzzer.
 - **NFC:** read and write tags, share your contact or a channel invite by tapping
   a phone to the pager.
-- **Themes:** Squatch, Blocks, Hero and Aurora (see above).
-- **Lock screen:** a rotating one-liner under the clock, a few hundred of them:
-  jokes, mesh tips, per-theme lines and live ones from your own contact list.
-- **Battery:** an accurate percentage from the fuel gauge (the charger is set up so
-  the gauge sees every full charge), optimised charging that holds at 80% until
-  shortly before you usually unplug, and a battery saver that turns off GPS,
-  Bluetooth and Wi-Fi at 20%.
+- **Lock screen:** the time once, the date, and a rotating one-liner under the
+  clock, a few hundred of them: jokes, mesh tips, per-theme lines and live ones from
+  your own contact list.
+- **Battery:** an accurate percentage from the fuel gauge, optimised charging that
+  holds at 80% until shortly before you usually unplug, and a battery saver that
+  turns off GPS, Bluetooth, Wi-Fi and the motion sensor at 20%.
 - **Reliability:** contact and channel saves are crash-safe and fast, backups
   run daily to flash and SD with a progress screen, and a torn store is restored
   on boot.
 - **Settings:** radio presets, client repeat, auto-add rules, notifications with
   quiet hours, vibration strength, Bluetooth PIN, backups.
 
-## Keys
+## T-Deck (beta)
+
+The same firmware for the LilyGo T-Deck and T-Deck Plus, made for the touchscreen:
+a dashboard home, swipe up to unlock, notifications you can tap to open, and a
+sasquatch you can poke. Install it from https://squatchmesh.com/t-deck; its updates
+come over Wi-Fi while it charges. The source is on the
+[`tdeck`](https://github.com/BamBam1121/inw-mesh/tree/tdeck) branch, with the
+board's own drivers in `src/tdeck/`.
+
+## Keys (pager)
 
 | | |
 |---|---|
@@ -67,6 +98,7 @@ sounds, the vibration, the charging indicator and the plug-in chime.
 | Backspace | back (or delete while typing) |
 | Enter | send, or select |
 | orange key (hold) | numbers and symbols |
+| side button | tap: screen off and lock; hold: power off prompt; five fast taps: SOS |
 | on the home screen | `m` messages, `c` contacts, `p` map, `t` tools, `s` settings, `n` NFC, `l` lock |
 | in a chat | press the wheel for emoji and quick replies |
 | on the map | wheel zooms, `wasd` pans, `n` next node, `c` centre on me |
@@ -87,7 +119,8 @@ bring back a pager that won't start. Neither erases the flash; don't tick
   First install. Back up to SD first (Settings > System > how to enable wi-fi
   updates does it for you): everything comes back from the card. Without a card
   your keys, channels and settings are still kept; contacts refill from adverts.
-- After that, updates arrive over Wi-Fi.
+- After that, updates install themselves over Wi-Fi (Settings > System > install
+  updates by itself turns that off, and then it asks first).
 - **Installer can't connect?** On the pager, Settings > System > usb flash mode,
   then click install. (On 1.1.5 or older: hold BOOT, tap RESET, let go of BOOT.)
 - **Pager won't start?** Hold BOOT, tap RESET, let go of BOOT, and run First
@@ -102,6 +135,7 @@ bring back a pager that won't start. Neither erases the flash; don't tick
 ```bash
 pio run -e t-lora-pager           # full firmware, what the releases are built from
 pio run -e t-lora-pager-public    # without NFC
+pio run -e t-lora-pager-dev       # a developer build with USB test commands (never released)
 ```
 
 Flash the app only:
@@ -133,8 +167,12 @@ firmware is GPL-3.0. If you'd rather have a build with no ST code in it, use the
 | `src/dataio.*` | restore, backup, export |
 | `src/ui.*` | view stack, menus, prompts, text and emoji rendering |
 | `src/home.cpp`, `chats.cpp`, `contacts.cpp`, `mapview.cpp`, `tools.cpp`, `settings_ui.cpp`, `nfcapp.cpp` | the screens |
-| `src/netwifi.*` | Wi-Fi, NTP, tile downloads |
+| `src/scenes.h`, `mascot.h`, `squatch_talk.h`, `fx*.cpp` | the lock scenes, the sasquatch and what he says, the screen changes |
+| `src/regions.*`, `regional.*` | region scopes; region presets and time zones |
+| `src/motion.*` | the motion sensor: raise to wake, stay on while held, man-down |
+| `src/netwifi.*`, `ota.*`, `bugreport.*` | Wi-Fi, NTP and tile downloads; updates; problem reports |
 | `variants/inw_pager/` | board definition for MeshCore |
+| `web/`, `helpdesk/` | squatchmesh.com and its help desk |
 | `docs/hardware.md` | pinout and hardware notes |
 
 ## Licence
