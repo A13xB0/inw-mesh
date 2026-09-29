@@ -62,11 +62,15 @@ uint32_t movedAt = 0;                   // the last movement or input
 Vec anchor = {0, 0, 1};                 // how it was held when it last moved
 Vec base = {0, 0, 1};                   // how it has been held lately (~2 s), for lean()
 float leanX = 0, leanY = 0;
-// A shake: 3 jolts of 0.45 g+ within 0.6 s. One jolt is a bump or the pager set
-// down; a hand holding it stays under 0.1 g.
-uint32_t shakeWinAt = 0, shakeAt = 0;
-uint8_t shakeN = 0;
-float shakeWinPeak = 0, shakePeak = 0;
+// A shake is back and forth: swings of 0.9 g+ that keep reversing, 4 of them with
+// under 0.45 s between each. A single jolt - picked up, set down, a bump - rings the
+// filtered reading for a few samples and rebounds once, but never reverses like that
+// (the first version, "3 samples over 0.45 g", counted those: too sensitive).
+// A hand holding it stays under 0.1 g, walking under ~0.5.
+uint32_t swingAt = 0, shakeAt = 0;
+uint8_t swingN = 0;
+Vec swingDir = {0, 0, 0};
+float swingPeak = 0, shakePeak = 0;
 bool shaken = false;
 
 void sample(const Vec& a) {
@@ -89,11 +93,21 @@ void sample(const Vec& a) {
   // Held still in a hand: a hand shakes 0.02-0.07 g here, a table under 0.005.
   steadyN = shake < 0.08f ? steadyN + 1 : 0;
 
-  if (shake > 0.45f) {
-    if (!shakeN || now - shakeWinAt > 600) { shakeWinAt = now; shakeN = 0; shakeWinPeak = 0; }
-    shakeN++;
-    if (shake > shakeWinPeak) shakeWinPeak = shake;
-    if (shakeN >= 3) { shaken = true; shakeAt = now; shakePeak = shakeWinPeak; shakeN = 0; }
+  if (shake > 0.9f) {
+    const Vec dir = unit(d);
+    if (!swingN || now - swingAt > 450) {            // a first swing, or the last was too long ago
+      swingN = 1; swingDir = dir; swingPeak = shake;
+    } else if (dot(dir, swingDir) < -0.3f) {         // it came back the other way: one more swing
+      swingN++; swingDir = dir;
+      if (shake > swingPeak) swingPeak = shake;
+      if (swingN >= 4) {
+        shaken = true; shakeAt = now; shakePeak = swingPeak; swingN = 0;
+        Serial.printf("[motion] shaken (peak %.1f g)\n", shakePeak);
+      }
+    } else if (shake > swingPeak) {                  // the same swing, still going
+      swingPeak = shake;
+    }
+    swingAt = now;
   }
 
   // Man-down: a real jolt, or turned 12 degrees since it last moved. Breathing and

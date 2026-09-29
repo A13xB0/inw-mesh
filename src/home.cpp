@@ -236,18 +236,18 @@ private:
       if (now - _shakeWinAt > 8000) { _shakes = 0; _shakeWinAt = now; }
       const bool again = ++_shakes >= 3;
       if (again) _shakes = 0;
-      say(talk::line(again ? talk::SHAKE_AGAIN : peak > 1.3f ? talk::SHAKE_HARD : talk::SHAKE), 0, true);
+      say(talk::line(again ? talk::SHAKE_AGAIN : peak > 2.2f ? talk::SHAKE_HARD : talk::SHAKE), 0, true);
       _hopAt = now;
-      _hops = peak > 1.3f ? 2 : 1;
+      _hops = peak > 2.2f ? 2 : 1;
     }
     if (un > _seenUnread) say(talk::line(talk::MESSAGE, un - _seenUnread));
     _seenUnread = un;
     if (plugged && !_wasPlugged) say(talk::line(talk::PLUG), 900);   // after the charging splash
     _wasPlugged = plugged;
-    // Held tipped well over for a second or so (the scene is sliding downhill).
-    if (fabsf(_lx) > 0.85f || fabsf(_ly) > 0.85f) {
+    // Held tipped right over for 2 s (the scene sliding downhill): not just picked up.
+    if (fabsf(_lx) > 0.95f || fabsf(_ly) > 0.95f) {
       if (!_leaning) { _leaning = true; _leanAt = now; }
-      else if (now - _leanAt > 1200 && (int32_t)(now - _leanOkAt) >= 0) {
+      else if (now - _leanAt > 2000 && (int32_t)(now - _leanOkAt) >= 0) {
         say(talk::line(talk::LEAN));
         _leanOkAt = now + 60000;
       }

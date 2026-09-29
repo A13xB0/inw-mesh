@@ -24,8 +24,9 @@ namespace motion {
   uint8_t manDownMin();        void setManDownMin(uint8_t minutes);   // 0 = off
 
   bool takeRaise();            // lifted into view since the last call (raise to wake on)
-  // Shaken in the last second (3 strong jolts within ~0.6 s, so setting it down on a
-  // table doesn't count), with the hardest jolt in g. For the lock screen's sasquatch.
+  // Shaken in the last second - really shaken: 4 swings of 0.9 g+ back and forth,
+  // under 0.45 s apart, so picking it up or setting it down never counts - with the
+  // hardest swing in g. For the lock screen's sasquatch.
   bool takeShake(float& peak);
   bool faceDown();             // quiet when face down is on and it lies screen-down, still
   void noteActivity();         // a key, the wheel or the side button: someone is there
