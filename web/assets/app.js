@@ -91,6 +91,25 @@
   };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // The little markdown release notes use: ## headings, - lists, **bold**, *italic*
+  // and [links](https://...). Everything is escaped first, so only these tags come out.
+  const inline = (s) => esc(s)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<i>$2</i>");
+  const notes = (md) => {
+    let out = "", list = false;
+    for (const raw of String(md).split(/\r?\n/)) {
+      const line = raw.trim(), item = /^[-*] +(.*)/.exec(line), head = /^#{1,4} +(.*)/.exec(line);
+      if (list && !item) { out += "</ul>"; list = false; }
+      if (item) {
+        if (!list) { out += '<ul style="margin:6px 0 10px;padding-left:20px">'; list = true; }
+        out += '<li style="margin:3px 0">' + inline(item[1]) + "</li>";
+      } else if (head) out += '<h4 style="margin:14px 0 4px">' + inline(head[1]) + "</h4>";
+      else if (line) out += '<p style="margin:0 0 8px">' + inline(line) + "</p>";
+    }
+    return out + (list ? "</ul>" : "");
+  };
   // The releases page fills this in; no inline script needed, so the CSP can forbid them.
   if (document.getElementById("releases")) window.loadReleases("releases");
 
@@ -100,7 +119,7 @@
     if (!list.length) { box.innerHTML = '<div class="panel">No releases yet.</div>'; return; }
     box.innerHTML = list.map((rel, i) => {
       const date = new Date(rel.published_at || rel.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-      const body = esc(rel.body || "").replace(/\r?\n/g, "<br>");
+      const body = notes(rel.body || "");
       return '<article class="panel" style="margin-bottom:14px">' +
         '<div class="tag">' + esc(date) + (i === 0 ? " &middot; latest" : "") + "</div>" +
         '<h3 style="margin-top:8px">' + esc(rel.tag_name || rel.name) + "</h3>" +
