@@ -742,21 +742,34 @@ static void usbCommands() {
       nav.invalidate();
       continue;
     }
-    // "talkshot S K LIFT": lock scene S with the sasquatch saying a line of kind K
-    // (squatch_talk.h), LIFT px into a hop, as a screenshot.
+    // "talkshot S K LIFT [E [PHASE]]": lock scene S with the sasquatch saying a line of
+    // kind K (squatch_talk.h), LIFT px into a hop, E ms into the line (default: just
+    // typed out) and looking the part, at walk PHASE (default 6), as a screenshot.
     if (!strncmp(line, "talkshot ", 9)) {
       char* p = line + 9;
       const int st = (int)strtol(p, &p, 10);
       const int k = (int)strtol(p, &p, 10), lift = (int)strtol(p, &p, 10);
+      long e = strtol(p, &p, 10);
+      float ph = strtof(p, &p);
+      if (ph <= 0) ph = 6.0f;
+      const talk::Kind kind = (talk::Kind)constrain(k, 0, talk::KIND_COUNT - 1);
+      char text[40];
+      strlcpy(text, talk::line(kind, 3), sizeof(text));
+      if (e <= 0) e = talk::POP_MS + strlen(text) * talk::TYPE_MS + 300;
+      SquatchPose pose;
+      talk::pose(kind, text, (uint32_t)e, talk::sayMs(text), pose);
+      if (lift && kind == talk::SHAKE_HARD) pose.armsUp = 1;       // mid-hop
       Canvas& g = nav.canvas();
       g.fillScreen(theme.bg);
       drawStatusBar(g, theme, false);
       scenes::mascotLift() = lift;
-      scenes::lockScene(g, theme, (uint8_t)st, 6.0f, 300.0f, false, 80, 0, 0, 0);
+      scenes::mascotPose() = pose;
+      scenes::lockScene(g, theme, (uint8_t)st, ph, 300.0f, false, 80, 0, 0, 0);
       scenes::mascotLift() = 0;
+      scenes::mascotPose() = SquatchPose();
       int ax, ay;
       talk::anchor((uint8_t)st, lift, ax, ay);
-      talk::bubble(g, theme, ax, ay, talk::line((talk::Kind)constrain(k, 0, talk::KIND_COUNT - 1), 3), 1.0f);
+      talk::bubble(g, theme, ax, ay, text, 1.0f, talk::typed(text, (uint32_t)e));
       streamShot(g, g);
       nav.invalidate();
       continue;
@@ -1671,6 +1684,16 @@ void loop() {
       if (millis() - tIn > 120)
         Serial.printf("[W] input slow: %s on '%s' took %lums\n", what, before, (unsigned long)(millis() - tIn));
     }
+  }
+
+  // Held up to be read (motion.h): the screen stays on as if a key were pressed - up
+  // to 5 minutes past the last key or raise, a minute on the lock face - so a pocket
+  // that happens to look like a hand can't keep it lit. Never after the side button
+  // turned it off.
+  if (!dimmer.asleep()) {
+    const uint32_t held = motion::heldFor();
+    const bool onLock = nav.top() && nav.top()->isLock();
+    if (held && held < (onLock ? 60000UL : 300000UL)) dimmer.note();
   }
 
   // Screen went dark: next wake lands on the lock face.

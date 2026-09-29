@@ -22,7 +22,7 @@ uint8_t sensorId = 0;                   // the accelerometer this image offers
 uint8_t kicks = 0;                      // restarts after it went quiet
 uint32_t kickedAt = 0;
 
-bool raiseOn = true, quietOn = false;
+bool raiseOn = true, holdOn = true, quietOn = false;
 uint8_t manMin = 0;
 bool saverOn = false;                   // battery saver: only the man-down alarm keeps the sensor
 
@@ -55,6 +55,11 @@ int ringN = 0, ringAt = 0;
 int steadyN = 0;                        // samples in a row that barely moved
 
 bool raised = false;
+// Held up to read: `jitter` is the shake smoothed over ~0.4 s - a hand's tremor
+// (0.02-0.07 g) or a table's nothing (under 0.005). heldAt is the last sample that
+// looked held; holdFrom when this spell began, or the last key or raise.
+float jitter = 0;
+uint32_t heldAt = 0, holdFrom = 0;
 bool faceTiming = false;                // lying face down, timing since faceSince
 uint32_t faceSince = 0;
 bool face = false;
@@ -92,6 +97,17 @@ void sample(const Vec& a) {
   tilt = acosf(constrain(att.z * SCREEN_Z, -1.0f, 1.0f)) * 57.29578f;   // 0 face up, 90 on edge, 180 face down
   // Held still in a hand: a hand shakes 0.02-0.07 g here, a table under 0.005.
   steadyN = shake < 0.08f ? steadyN + 1 : 0;
+  jitter += 0.1f * (shake - jitter);
+  // Held to read, the top edge is up: y reads negative (measured on a pager).
+  const bool upright = att.y < 0 && fabsf(att.x) < 0.6f;
+
+  // Held up to be read: at the angle a raise leaves it (a little looser either way),
+  // the right way up, and in a hand. Propped on a stand at the same angle it is
+  // still, and times out as usual.
+  if (tilt >= 10 && tilt <= 85 && upright && jitter > 0.010f) {
+    if (!heldAt || now - heldAt > 1500) holdFrom = now;          // a new spell of holding
+    heldAt = now;
+  }
 
   if (shake > 0.9f) {
     const Vec dir = unit(d);
@@ -129,15 +145,14 @@ void sample(const Vec& a) {
   // differently (35+ degrees) within the last 3 s: out of a pocket, up off a table,
   // turned over. Walking holds it the same way throughout, putting it down ends
   // flat, and a pocket mostly holds it upside down or on its side.
-  // Held to read, the top edge is up: y reads negative (measured on a pager).
   ring[ringAt] = att;
   ringAt = (ringAt + 1) % RING;
   if (ringN < RING) ringN++;
-  const bool upright = att.y < 0 && fabsf(att.x) < 0.6f;
   if (steadyN >= 4 && tilt >= 15 && tilt <= 80 && upright) {
     for (int i = 0; i < ringN; i++) {
       if (degBetween(ring[i], att) >= 35) {
         raised = true;
+        holdFrom = now;                                           // holding it from here on is new
         ringN = ringAt = 0;
         Serial.printf("[motion] lifted into view (tilt %.0f)\n", tilt);
         break;
@@ -202,12 +217,14 @@ void stream(bool on) {
   }
   primed = raised = face = false;
   faceTiming = false;
+  heldAt = 0;
+  jitter = 0;
 }
 
 void apply() {
   // Battery saver stops the sensor, unless the man-down alarm is on: it can't watch
   // without it, and it is the one use here that is about safety.
-  const bool want = saverOn ? manMin != 0 : (raiseOn || quietOn || manMin);
+  const bool want = saverOn ? manMin != 0 : (raiseOn || holdOn || quietOn || manMin);
   if (want && !loaded && !failed) load();
   stream(want);
 }
@@ -216,6 +233,7 @@ void save() {
   Preferences p;
   if (!p.begin("inw-motion", false)) return;
   p.putBool("raise", raiseOn);
+  p.putBool("hold", holdOn);
   p.putBool("quiet", quietOn);
   p.putUChar("mandown", manMin);
   p.end();
@@ -227,6 +245,7 @@ void begin() {
   Preferences p;
   if (p.begin("inw-motion", true)) {
     raiseOn = p.getBool("raise", true);
+    holdOn = p.getBool("hold", true);
     quietOn = p.getBool("quiet", false);
     manMin = p.getUChar("mandown", 0);
     p.end();
@@ -262,26 +281,35 @@ bool running() { return streaming && millis() - lastSample < 3000; }
 const char* state() {
   if (failed) return "not responding";
   if (running()) return saverOn ? "on for man-down (saver)" : "on";
-  if (saverOn && (raiseOn || quietOn)) return "paused: battery saver";
+  if (saverOn && (raiseOn || holdOn || quietOn)) return "paused: battery saver";
   return streaming ? "starting" : "off";
 }
 
 bool paused() { return saverOn; }
 
 bool raiseToWake() { return raiseOn; }
+bool stayOnHeld() { return holdOn; }
 bool quietFaceDown() { return quietOn; }
 uint8_t manDownMin() { return manMin; }
 
 // Turning one on after a failure tries the sensor again.
 void setRaiseToWake(bool on) { raiseOn = on; if (on) failed = false; save(); apply(); }
+void setStayOnHeld(bool on) { holdOn = on; if (on) failed = false; save(); apply(); }
 void setQuietFaceDown(bool on) { quietOn = on; if (on) failed = false; save(); apply(); }
 void setManDownMin(uint8_t m) { manMin = m; movedAt = millis(); if (m) failed = false; save(); apply(); }
 
-// In battery saver these three rest even when the man-down alarm keeps the sensor going.
+// In battery saver these rest even when the man-down alarm keeps the sensor going.
 bool takeRaise() {
   const bool r = raised;
   raised = false;
   return r && raiseOn && !saverOn && running();
+}
+
+uint32_t heldFor() {
+  const uint32_t now = millis();
+  if (!holdOn || saverOn || !running() || !heldAt || now - heldAt > 1500) return 0;
+  const uint32_t f = now - holdFrom;
+  return f ? f : 1;
 }
 
 bool takeShake(float& peak) {
@@ -295,6 +323,7 @@ bool faceDown() { return quietOn && !saverOn && running() && face; }
 
 void noteActivity() {
   movedAt = millis();
+  holdFrom = movedAt;                   // a key restarts how long holding keeps the screen on
   if (primed) anchor = unit(lp);
 }
 
@@ -308,8 +337,9 @@ bool lean(float& x, float& y) {
 }
 
 void debugPrint() {
-  Serial.printf("[motion] %s  g %.3f %.3f %.3f  tilt %.0f  shake %.3f  still %lus  face %d  raise %d quiet %d mandown %u\n",
-                state(), lp.x, lp.y, lp.z, tilt, shake, (unsigned long)(stillFor() / 1000), face, raiseOn, quietOn, manMin);
+  Serial.printf("[motion] %s  g %.3f %.3f %.3f  tilt %.0f  shake %.3f  jitter %.3f  held %lus  still %lus  face %d  raise %d hold %d quiet %d mandown %u\n",
+                state(), lp.x, lp.y, lp.z, tilt, shake, jitter, (unsigned long)(heldFor() / 1000),
+                (unsigned long)(stillFor() / 1000), face, raiseOn, holdOn, quietOn, manMin);
 }
 
 }  // namespace motion

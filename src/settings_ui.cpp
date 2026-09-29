@@ -662,6 +662,12 @@ static void displayMenu() {
   // The lock screen's sasquatch and his speech bubble (squatch_talk.h).
   m->toggle("sasquatch talks", [] { return !ui_settings.squatchQuiet; },
             [] { ui_settings.squatchQuiet = !ui_settings.squatchQuiet; markUiDirty(); });
+  // Held up to be read, the screen doesn't time out (motion.h).
+  m->toggle("stay on while held", [] { return motion::stayOnHeld(); }, [] {
+    motion::setStayOnHeld(!motion::stayOnHeld());
+    if (motion::stayOnHeld() && motion::paused()) nav.toast("starts when battery saver ends", 3000);
+    else if (motion::stayOnHeld() && !motion::running()) nav.toast("motion sensor not responding", 3000);
+  });
   nav.push(m);
 }
 

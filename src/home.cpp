@@ -119,8 +119,10 @@ public:
     drawStatusBar(d, t, false);          // the big clock below is the time here
     const bool hasUnread = app::unread() > 0;
     scenes::mascotLift() = _lift;         // mid-hop after a shake
+    scenes::mascotPose() = pose();        // blinking, talking, waving...
     scenes::lockScene(d, t, t.style, _phase, _scroll, hasUnread, app::batteryPct(), app::unread(), _lx, _ly);
     scenes::mascotLift() = 0;
+    scenes::mascotPose() = SquatchPose();
     drawTalk(d, t);
     d.fillRect(0, 172, L::W, L::H - 172, t.bg);
 
@@ -163,8 +165,13 @@ public:
     const uint32_t gap = litAt() ? _step - litAt() : 0xFFFFFFFFUL;
     litAt() = _step;
     if (!ui_settings.squatchQuiet) chatter(gap);
-    _phase += 0.32f;
-    _scroll += 2.0f;
+    // He blinks every few seconds, now and then twice.
+    if ((int32_t)(_step - _blinkAt) >= (int32_t)BLINK_MS)
+      _blinkAt = _step + (random(5) == 0 ? 250 : 2000 + random(4000));
+    // A low battery shows: he trudges along at a tired pace.
+    const float pace = tired() ? 0.6f : 1.0f;
+    _phase += 0.32f * pace;
+    _scroll += 2.0f * pace;
     if (_scroll > 10000.0f) _scroll = 0;
     // The scene leans with the pager (motion.h), eased so 25 samples a second draw
     // smoothly at 30 frames.
@@ -188,17 +195,35 @@ private:
   }
 
   // ---- the sasquatch talks (squatch_talk.h) ------------------------------------------
-  static constexpr uint32_t SAY_MS = 3500, POP_MS = 160, QUIET_MS = 6000, HOP_MS = 380;
+  static constexpr uint32_t QUIET_MS = 6000, HOP_MS = 380, BLINK_MS = 120;
 
-  // Start a line `delayMs` from now. A shake always gets its say; anything else waits
-  // for the bubble on screen and a few quiet seconds after it.
-  void say(const char* text, uint32_t delayMs = 0, bool force = false) {
+  // Start a line of kind k `delayMs` from now (n: how many messages, for MESSAGE). A
+  // shake always gets its say; anything else waits for the bubble on screen and a
+  // few quiet seconds after it.
+  void say(talk::Kind k, uint32_t delayMs = 0, bool force = false, unsigned n = 0) {
     const uint32_t now = millis();
     if (!force && (_saying || (int32_t)(now - _quietUntil) < 0)) return;
-    strlcpy(_say, text, sizeof(_say));
+    strlcpy(_say, talk::line(k, n), sizeof(_say));
+    _sayKind = k;
+    _sayMs = talk::sayMs(_say);
     _sayAt = now + delayMs;
     _saying = true;
     dirty = true;
+  }
+
+  static bool tired() { return app::batteryPct() < 15 && !app::pluggedIn(); }
+
+  // How he looks this frame (mascot.h): blinking, tired, flailing mid-hop, and
+  // whatever goes with the line he's saying.
+  SquatchPose pose() const {
+    SquatchPose p;
+    const uint32_t now = millis();
+    p.blink = (int32_t)(now - _blinkAt) >= 0 && now - _blinkAt < BLINK_MS;
+    if (tired()) p.slump = 1;
+    if (_saying && !ui_settings.squatchQuiet && (int32_t)(now - _sayAt) >= 0 && now - _sayAt < _sayMs)
+      talk::pose(_sayKind, _say, now - _sayAt, _sayMs, p);
+    if (_hops && _flail) p.armsUp = 1;
+    return p;
   }
 
   static uint32_t& litAt() { static uint32_t v = 0; return v; }   // the lock face's last lit frame
@@ -219,11 +244,11 @@ private:
     if (gap > 3000) {
       // Just lit up. A message that woke it, a low battery, or - after a good while
       // dark (or now and then) - hello for the time of day. After the wake animation.
-      if (un > _seenUnread) say(talk::line(talk::MESSAGE, un - _seenUnread), 400);
-      else if (app::batteryPct() < 15 && !plugged) say(talk::line(talk::LOW_BATT), 400);
+      if (un > _seenUnread) say(talk::MESSAGE, 400, false, un - _seenUnread);
+      else if (app::batteryPct() < 15 && !plugged) say(talk::LOW_BATT, 400);
       else if (gap > 15UL * 60UL * 1000UL || random(4) == 0) {
         const int h = localHour();
-        say(talk::line(h >= 5 && h < 11 ? talk::MORNING : h < 17 ? talk::DAY : h < 22 ? talk::EVENING : talk::LATE), 400);
+        say(h >= 5 && h < 11 ? talk::MORNING : h < 17 ? talk::DAY : h < 22 ? talk::EVENING : talk::LATE, 400);
       }
       _seenUnread = un;
       _wasPlugged = plugged;
@@ -236,19 +261,20 @@ private:
       if (now - _shakeWinAt > 8000) { _shakes = 0; _shakeWinAt = now; }
       const bool again = ++_shakes >= 3;
       if (again) _shakes = 0;
-      say(talk::line(again ? talk::SHAKE_AGAIN : peak > 2.2f ? talk::SHAKE_HARD : talk::SHAKE), 0, true);
+      say(again ? talk::SHAKE_AGAIN : peak > 2.2f ? talk::SHAKE_HARD : talk::SHAKE, 0, true);
       _hopAt = now;
       _hops = peak > 2.2f ? 2 : 1;
+      _flail = peak > 2.2f;               // a hard one throws his arms up
     }
-    if (un > _seenUnread) say(talk::line(talk::MESSAGE, un - _seenUnread));
+    if (un > _seenUnread) say(talk::MESSAGE, 0, false, un - _seenUnread);
     _seenUnread = un;
-    if (plugged && !_wasPlugged) say(talk::line(talk::PLUG), 900);   // after the charging splash
+    if (plugged && !_wasPlugged) say(talk::PLUG, 900);   // after the charging splash
     _wasPlugged = plugged;
     // Held tipped right over for 2 s (the scene sliding downhill): not just picked up.
     if (fabsf(_lx) > 0.95f || fabsf(_ly) > 0.95f) {
       if (!_leaning) { _leaning = true; _leanAt = now; }
       else if (now - _leanAt > 2000 && (int32_t)(now - _leanOkAt) >= 0) {
-        say(talk::line(talk::LEAN));
+        say(talk::LEAN);
         _leanOkAt = now + 60000;
       }
     } else _leaning = false;
@@ -259,7 +285,7 @@ private:
       else _lift = (int)(14.0f * sinf(3.14159f * (float)(e % HOP_MS) / HOP_MS));
     }
     // The bubble ends; a few quiet seconds before the next unforced line.
-    if (_saying && (int32_t)(now - (_sayAt + SAY_MS)) >= 0) { _saying = false; _quietUntil = now + QUIET_MS; }
+    if (_saying && (int32_t)(now - (_sayAt + _sayMs)) >= 0) { _saying = false; _quietUntil = now + QUIET_MS; }
   }
 
   void drawTalk(Canvas& d, const Theme& t) {
@@ -267,11 +293,12 @@ private:
     const uint32_t now = millis();
     if ((int32_t)(now - _sayAt) < 0) return;                 // not started yet
     const uint32_t e = now - _sayAt;
-    if (e >= SAY_MS) return;
+    if (e >= _sayMs) return;
     int ax, ay;                                              // just above his head
     talk::anchor(t.style, _lift, ax, ay);
-    const float grow = e < POP_MS ? (float)e / POP_MS : e > SAY_MS - POP_MS ? (float)(SAY_MS - e) / POP_MS : 1.0f;
-    talk::bubble(d, t, ax, ay, _say, grow);
+    const uint32_t pop = talk::POP_MS;
+    const float grow = e < pop ? (float)e / pop : e > _sayMs - pop ? (float)(_sayMs - e) / pop : 1.0f;
+    talk::bubble(d, t, ax, ay, _say, grow, talk::typed(_say, e));
   }
 
   uint32_t _hintAt = 0;
@@ -281,8 +308,10 @@ private:
   char _quip[96] = "";
   // the talking sasquatch
   char _say[40] = "";
-  bool _saying = false, _leaning = false, _wasPlugged = false;
-  uint32_t _sayAt = 0, _quietUntil = 0, _shakeWinAt = 0, _hopAt = 0, _leanAt = 0, _leanOkAt = 0;
+  talk::Kind _sayKind = talk::DAY;
+  bool _saying = false, _leaning = false, _wasPlugged = false, _flail = false;
+  uint32_t _sayAt = 0, _sayMs = 0, _quietUntil = 0, _shakeWinAt = 0, _hopAt = 0, _leanAt = 0, _leanOkAt = 0;
+  uint32_t _blinkAt = millis() + 1500;
   uint16_t _seenUnread = 0;
   uint8_t _shakes = 0, _hops = 0;
   int _lift = 0;

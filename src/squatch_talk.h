@@ -1,11 +1,13 @@
 // The lock screen's sasquatch talks: a speech bubble over him that reacts to what
 // the pager is doing - shaken (he hops), picked up, a message in, plugged in, low,
-// held tilted. home.cpp's LockView decides when; this holds what he says and draws
-// the bubble. Settings > Display > "sasquatch talks" turns it off.
+// held tilted. home.cpp's LockView decides when; this holds what he says, how he
+// looks saying it, and draws the bubble. Settings > Display > "sasquatch talks"
+// turns it off.
 #pragma once
 #include <Arduino.h>
 #include "display_config.h"
 #include "theme.h"
+#include "mascot.h"      // SquatchPose
 #include "ui.h"          // L::W
 
 namespace talk {
@@ -120,6 +122,46 @@ inline const char* line(Kind k, unsigned n = 0) {
   return s.l[deal(decks[k], s.n)];
 }
 
+// ---- saying it -----------------------------------------------------------------------------
+// The bubble pops in, the words come out a letter at a time while his mouth moves,
+// and it stays up long enough to read: longer lines stay longer.
+constexpr uint32_t POP_MS = 160, TYPE_MS = 35;
+inline uint32_t sayMs(const char* text) {
+  const uint32_t n = (uint32_t)strlen(text);
+  return POP_MS + n * TYPE_MS + 2400 + n * 30;
+}
+// How many letters show e ms into a line.
+inline int typed(const char* text, uint32_t e) {
+  const int n = (int)strlen(text);
+  if (e < POP_MS) return 0;
+  const int k = (int)((e - POP_MS) / TYPE_MS) + 1;
+  return k < n ? k : n;
+}
+
+// How he looks e ms into a line of kind k that's up for `total` ms: the mouth moves
+// while the words come out, and each kind has its own gesture.
+inline void pose(Kind k, const char* text, uint32_t e, uint32_t total, SquatchPose& p) {
+  const uint32_t n = (uint32_t)strlen(text);
+  const bool typing = e >= POP_MS && e < POP_MS + n * TYPE_MS;
+  // Gestures ease in over the first quarter second and out over the last.
+  const float in = e < 250 ? e / 250.0f : 1.0f;
+  const float out = e + 250 > total ? (e < total ? (total - e) / 250.0f : 0.0f) : 1.0f;
+  const float on = in < out ? in : out;
+  if (typing) p.mouth = ((e - POP_MS) / 90) % 2 ? 0 : 1;
+  switch (k) {
+    case MORNING: case DAY: case EVENING: case MESSAGE:
+      p.wave = on; break;                                      // hello, and "look!"
+    case LATE:
+      if (e < 750) { p.mouth = 2; p.blink = true; }            // a big yawn first
+      break;
+    case PLUG: p.happy = true; break;                          // snacks
+    case SHAKE_HARD: if (typing) p.mouth = 2; break;           // yelling it
+    case SHAKE_AGAIN: p.dizzy = e * 0.006f; break;             // seeing stars
+    case LEAN: p.armsUp = 0.45f * on; break;                   // arms out for balance
+    default: break;
+  }
+}
+
 // Just above the character's head in each lock scene (scenes.h), lift px off the
 // ground mid-hop: where the bubble's tail points.
 inline void anchor(uint8_t style, int lift, int& ax, int& ay) {
@@ -132,8 +174,9 @@ inline void anchor(uint8_t style, int lift, int& ax, int& ay) {
 }
 
 // The bubble, its tail pointing at (ax, ay) - just above his head. It pops in over
-// the first ~0.16 s (grow 0..1) and the words appear once it's full size.
-inline void bubble(lgfx::LovyanGFX& d, const Theme& t, int ax, int ay, const char* text, float grow) {
+// the first ~0.16 s (grow 0..1), sized for the whole line, and the first `chars`
+// letters show once it's full size (-1: all of them).
+inline void bubble(lgfx::LovyanGFX& d, const Theme& t, int ax, int ay, const char* text, float grow, int chars = -1) {
   d.setFont(&fonts::Font2);
   const int fullW = d.textWidth(text) + 18, fullH = 22;
   const float g = grow < 0.35f ? 0.35f : (grow > 1 ? 1 : grow);
@@ -152,9 +195,12 @@ inline void bubble(lgfx::LovyanGFX& d, const Theme& t, int ax, int ay, const cha
   d.drawLine(tb, y0 + h - 1, ax + 2, ay, edge);
   d.drawLine(tb + 9, y0 + h - 1, ax + 2, ay, edge);
   d.drawFastHLine(tb + 1, y0 + h - 1, 8, fill);      // opens the bubble into its tail
-  if (g >= 1.0f) {
+  if (g >= 1.0f && chars != 0) {
+    char b[40];
+    strlcpy(b, text, sizeof(b));
+    if (chars > 0 && chars < (int)sizeof(b)) b[chars] = 0;
     d.setTextColor(t.bg, fill);
-    d.drawString(text, x0 + 9, y0 + 4);
+    d.drawString(b, x0 + 9, y0 + 4);
   }
 }
 
