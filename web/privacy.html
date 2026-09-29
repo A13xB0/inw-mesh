@@ -41,9 +41,10 @@
 <main id="main" class="wrap" style="max-width:780px">
   <div class="tag" style="margin-top:46px">privacy</div>
   <h1>What we collect</h1>
-  <p class="sub">Short version: nothing you don't type in yourself. No accounts, no cookies, no
-  analytics, no ads. The one exception: Cloudflare may set a short-lived security cookie if it
-  needs to check a visitor is not a bot. Last updated 16 September 2026.</p>
+  <p class="sub">Short version: no accounts, no cookies, no ads, no tracking. The installer and the
+firmware send a few anonymous facts so we can tell they work - what and when is below - and the
+device side can be turned off. Cloudflare may set a short-lived security cookie if it needs to check
+a visitor is not a bot. Last updated 28 September 2026.</p>
 
   <h2>This website</h2>
   <div class="panel reveal">
@@ -78,9 +79,14 @@
 
   <h2>Flashing from your browser</h2>
   <div class="panel reveal">
-    <p class="sub" style="font-size:14px;margin:0">The installer talks to your pager over USB inside your
-    own browser. Firmware is downloaded to your computer and written to the device; nothing is read off
-    the pager or sent anywhere. The releases page keeps the release list in your browser for ten
+    <p class="sub" style="font-size:14px;margin:0">The installer talks to your pager or T-Deck over USB
+inside your own browser. Firmware is downloaded to your computer and written to the device. To check
+the install worked, it reads the device's short status line (firmware version, whether the radio
+started, how many contacts) - that stays in your browser. When an install finishes, the page sends
+this site one line: which device, which version, and whether it worked, so we know how many installs
+succeed. If an install fails in a way worth fixing, it also sends the device's last startup lines and
+your browser's name to the <a href="#helper">help desk</a>, whose AI helper summarises them for the
+developer; those lines can include the device's name on the mesh, never messages or keys. The releases page keeps the release list in your browser for ten
     minutes so it doesn't ask GitHub again on every visit. That is not a cookie, and it never leaves your
     computer. Closing the privacy notice is remembered the same way, in your browser, so it doesn't
     show again.</p>
@@ -88,9 +94,16 @@
 
   <h2>The firmware</h2>
   <div class="panel reveal">
-    <p class="sub" style="font-size:14px;margin:0">Squatch Mesh has no telemetry and phones home to no
-    one. It only uses the internet when you turn Wi-Fi on: checking GitHub for updates, and downloading
-    map tiles from OpenStreetMap if you enabled that. Messages travel over LoRa radio, not the internet.
+    <p class="sub" style="font-size:14px;margin:0">Squatch Mesh only uses the internet when Wi-Fi is on:
+checking GitHub for updates, map tiles from OpenStreetMap if you enabled that, and
+<b id="reports">problem reports</b>. If the device crashes or hits an error, it sends this site a
+short report: the firmware version, why it restarted, where it crashed, memory and battery, and the
+last lines of its own log with Wi-Fi names, channel names and the device's name taken out. Once a day
+it also checks in with just its board, its version and a random number that isn't linked to your mesh
+identity, so we know how many are in use. Never messages, contacts, keys or your position. Reports
+are emailed to the developer and kept for 30 days; the counts are kept with your IP address replaced
+by a scrambled code. Turn both off under <b>Settings &rarr; System &rarr; send problem reports</b>
+(pager 1.2.3 and later, and the T-Deck beta). Messages travel over LoRa radio, not the internet.
     Channels are readable by anyone who knows the channel name; direct messages are encrypted end to end.
     Your position is only shared if you turn position sharing on.</p>
   </div>
