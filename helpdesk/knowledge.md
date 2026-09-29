@@ -159,3 +159,34 @@ Keeping keys and contacts on a first install (from other firmware)
 Data
 - Contacts and channels are kept on the pager and, with an SD card, also backed up to it. Loss of
   contacts or messages is always worth handing off to the developer.
+
+New in 1.2.3 (the release after the 1.2.2 beta; 1.2.2 was only ever a beta, 1.2.3 has all of it)
+- Updates install by themselves: on Wi-Fi it checks when Wi-Fi connects and every 6 hours, and puts a new
+  official release in once the pager is idle (screen off 2 minutes, charging or above 30%, no SOS or phone
+  sync). It says "Updated" afterwards; contacts, channels and settings are kept. Settings > System >
+  "install updates by itself" turns it off (then it asks first, as before). Beta builds always ask.
+  Pagers on 1.2.1 or older still get asked once for 1.2.3; the self-install starts from 1.2.3 on.
+- Problem reports: after a crash, a watchdog restart or a real error, the pager sends the developer a
+  short report over Wi-Fi when idle (version, why it restarted, where it crashed, memory, battery, its last
+  log lines with Wi-Fi names, channel names and its own name removed), plus a once-a-day check-in (board,
+  version, a random number not linked to the mesh identity). Never messages, contacts, keys or position.
+  Settings > System > "send problem reports" turns both off. Tools > "send log to the developer" sends the
+  log on purpose - useful to suggest when someone describes a bug. The privacy page has the details.
+  If someone asks whether the firmware phones home: yes, only this, only on Wi-Fi, and it can be turned off.
+- The talking sasquatch: on the lock screen he has a speech bubble. He reacts to a real shake (back and
+  forth; picking it up or setting it down doesn't count) and hops, says hello for the time of day when the
+  pager is picked up after a while, and speaks up for a new message, the charger plugged in, a low battery,
+  and being held tipped right over. Settings > Display > "sasquatch talks" turns him off. The other themes'
+  characters talk too. He needs the motion sensor for shakes (off in battery saver).
+- The lock screen shows the time once (the big clock) and the date; the top bar has no clock there but
+  keeps it on every other screen.
+- Wi-Fi left on away from saved networks now tries less and less often (up to every 15 minutes with the
+  screen off) instead of every 20 seconds - it used to cost a lot of battery.
+
+T-Deck beta (1.2.2-beta6 and later)
+- Screen dark on battery: only the LoRa radio runs. The GPS sleeps until the screen wakes, and Wi-Fi turns
+  off a minute into the dark and comes back when the screen wakes. Plugged in, Wi-Fi stays on, so on a
+  T-Deck updates install themselves while it charges on Wi-Fi.
+- The same problem reports and daily check-in as the pager, and the same switch to turn them off.
+- It has a Bluetooth console for the developer's tools (admin password only); phones won't list it in
+  Bluetooth settings, which is normal.

@@ -62,6 +62,13 @@
       <a href="#notify">Notifications</a>
       <a href="#sd">SD card</a>
       <a href="#radio">Radio defaults</a>
+      <a href="#wifi">Wi-Fi</a>
+      <a href="#messages">Message details</a>
+      <a href="#header">Top header</a>
+      <a href="#regions">Region scopes</a>
+      <a href="#motion">Motion sensor</a>
+      <a href="#lock">The lock screen</a>
+      <a href="#reports">Problem reports</a>
       <a href="#privacy">Privacy</a>
     </nav>
 
@@ -108,10 +115,14 @@
 
       <h2 id="updates">Updates</h2>
       <div class="panel reveal">
-        <p class="sub" style="font-size:14px;margin:0"><b>Settings &rarr; System &rarr; check for updates</b>,
-        or leave "check on start" on and it will offer them when a new release appears. It always asks
-        first. Turning on <b>beta updates</b> gets you builds before they are released, which is useful if
-        you want to help find problems and tolerable only if you do.</p>
+        <p class="sub" style="font-size:14px;margin:0">From 1.2.3, new releases <b>install by themselves</b>
+        over Wi-Fi: it checks when Wi-Fi connects and every six hours, and puts a new official release in
+        once the pager is idle - screen off for two minutes, charging or above 30%, no SOS or phone sync
+        running. When it comes back it says <i>Updated</i>, with everything kept. Turn that off under
+        <b>Settings &rarr; System &rarr; install updates by itself</b> and it asks first instead, as it
+        used to. <b>Check for updates</b> in the same menu looks right away. Turning on <b>beta updates</b>
+        gets you builds before they are released, which is useful if you want to help find problems and
+        tolerable only if you do; a beta always asks before it installs.</p>
       </div>
 
       <h2 id="battery">Battery</h2>
@@ -159,7 +170,8 @@
         itself never needs it. <b>Settings &rarr; Wi-Fi &rarr; scan + join a network</b>. It only sees
         <b>2.4 GHz</b> networks. When it can't join, it says why: <i>wrong password?</i>, <i>not found (2.4 GHz
         only)</i>, <i>no answer, weak signal?</i> or <i>joined, router gave no address</i>. To fix a password,
-        scan and join the network again.</p>
+        scan and join the network again. Away from your saved networks it tries less and less often (up
+        to every 15 minutes with the screen off), so leaving Wi-Fi on doesn't drain the battery.</p>
       </div>
 
       <h2 id="messages">Message details</h2>
@@ -205,12 +217,35 @@
         and it waits while the pager is charging. Turn it off when you put the pager down for the day.</p>
       </div>
 
+      <h2 id="lock">The lock screen</h2>
+      <div class="panel reveal">
+        <p class="sub" style="font-size:14px;margin:0">The lock screen shows the time once, in the big
+        clock, with the date beside it; the top bar keeps its clock on every other screen. The scene
+        <b>leans</b> as you tip the pager. And <b>the sasquatch talks</b>: shake the pager (properly, back
+        and forth) and he says so and hops; pick it up after a while and he says hello for the time of day;
+        he tells you when a message comes in, when you plug in the charger, when the battery runs low, and
+        when you hold him tipped right over. He has plenty to say and won't repeat himself until he's been
+        through it all. Turn him quiet under <b>Settings &rarr; Display &rarr; sasquatch talks</b>.</p>
+      </div>
+
+      <h2 id="reports">Problem reports</h2>
+      <div class="panel reveal">
+        <p class="sub" style="font-size:14px;margin:0">If the pager crashes or hits an error, it sends the
+        developer a short report over Wi-Fi when it's idle: the version, why it restarted, where it crashed,
+        memory and battery, and its last log lines with Wi-Fi names, channel names and its own name taken
+        out. Once a day it also checks in with just its board, version and a random number, so we know how
+        many are in use. <b>Tools &rarr; send log to the developer</b> sends the log on purpose, if something
+        looks wrong. Both are on to start with; <b>Settings &rarr; System &rarr; send problem reports</b>
+        turns them off. Details on the <a href="/privacy#reports">privacy page</a>.</p>
+      </div>
+
       <h2 id="privacy">Privacy</h2>
       <div class="panel warn reveal">
         <p class="sub" style="font-size:14px;margin:0">Position sharing is off until you turn it on.
         Channel keys are derived from the channel name, so sharing a name is sharing access. And an
-        <b>export contains your private key</b> â€” anyone holding that file can be you on the mesh, so treat
-        it like a password.</p>
+        <b>export contains your private key</b>: anyone holding that file can be you on the mesh, so treat
+        it like a password. Problem reports and the daily check-in (<a href="#reports">below</a>) never
+        carry messages, contacts, keys or your position.</p>
       </div>
     </div>
   </div>
