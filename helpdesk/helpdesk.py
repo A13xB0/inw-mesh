@@ -473,6 +473,10 @@ class Handler(BaseHTTPRequestHandler):
             log_line({"event": "report_dropped", "why": why, "device": rep["device"], "kind": rep["kind"]})
             return self.reply(429, {"error": why})
         log_line(dict(rep, event="report", who=ip_key(ip)))
+        # A flat battery sagging until the chip resets is not a fault: keep it in the log
+        # (tally shows them), but no mail.
+        if rep["reset"] == "brownout" or rep["why"] == "brownout":
+            return self.reply(200, {"ok": True})
         if allow_report_mail():
             threading.Thread(target=mail_report, args=(rep,), daemon=True).start()
         self.reply(200, {"ok": True})
@@ -561,7 +565,7 @@ def clean_report(b):
            "why": s("why", 80), "reset": s("reset", 24), "uptime_s": i("uptime_s"), "heap_free": i("heap_free"),
            "heap_min": i("heap_min"), "psram_free": i("psram_free"), "battery": i("battery"),
            "charging": bool(b.get("charging")), "radio": bool(b.get("radio")), "log": s("log", 6000)}
-    for k, n in (("task", 16), ("pc", 12), ("vaddr", 12), ("backtrace", 240), ("elf_sha", 16)):
+    for k, n in (("name", 40), ("task", 16), ("pc", 12), ("vaddr", 12), ("backtrace", 240), ("elf_sha", 16)):
         if b.get(k):
             rep[k] = s(k, n)
     if b.get("cause") is not None:
@@ -629,10 +633,13 @@ def mail_report(rep):
     where = ""
     if rep.get("pc"):
         where = " in %s at %s" % (rep.get("task") or "?", rep["pc"])
-    subject = "%s %s %s%s" % ({"t-deck": "T-Deck", "t-lora-pager": "Pager"}.get(rep["board"], rep["board"]),
-                              "crash" if rep["kind"] == "crash" else "report", rep["version"],
-                              where or (": " + rep["why"] if rep["why"] else ""))
+    who = re.sub(r"[\r\n]", " ", rep.get("name") or "").strip()
+    subject = "%s%s %s %s%s" % (who + ": " if who else "",
+                                {"t-deck": "T-Deck", "t-lora-pager": "Pager"}.get(rep["board"], rep["board"]),
+                                "crash" if rep["kind"] == "crash" else "report", rep["version"],
+                                where or (": " + rep["why"] if rep["why"] else ""))
     lines = [
+        "From: %s" % (who or "(no name: firmware older than the one that sends it)"),
         "Device %s, firmware %s" % (rep["device"], rep["version"]),
         "Kind: %s (%s)" % (rep["kind"], rep["why"] or "-"),
         "Last reset: %s, up %d s" % (rep["reset"], rep["uptime_s"]),

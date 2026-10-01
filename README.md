@@ -58,8 +58,8 @@ changes, the card style, the sounds, the vibration and the charging splash.
   keeps the old version if anything goes wrong. Contacts, keys and settings are
   untouched.
 - **Problem reports:** after a crash or an error the pager sends the developer a
-  short report over Wi-Fi, and checks in once a day with just its board and version.
-  Never messages, contacts, keys or your position. Settings > System turns both off;
+  short report over Wi-Fi with the pager's mesh name on it, and checks in once a day
+  with just its board and version. Never messages, contacts, keys or your position. Settings > System turns both off;
   the [privacy page](https://squatchmesh.com/privacy) has the details.
 - **First start:** radio region presets, a named time zone with daylight saving,
   12/24 h and miles/km.

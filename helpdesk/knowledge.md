@@ -168,8 +168,9 @@ New in 1.2.3 (the release after the 1.2.2 beta; 1.2.2 was only ever a beta, 1.2.
   Pagers on 1.2.1 or older still get asked once for 1.2.3; the self-install starts from 1.2.3 on.
 - Problem reports: after a crash, a watchdog restart or a real error, the pager sends the developer a
   short report over Wi-Fi when idle (version, why it restarted, where it crashed, memory, battery, its last
-  log lines with Wi-Fi names, channel names and its own name removed), plus a once-a-day check-in (board,
-  version, a random number not linked to the mesh identity). Never messages, contacts, keys or position.
+  log lines with Wi-Fi names and channel names removed; from pager 1.2.5 and T-Deck 1.2.4-beta3 also the
+  name the device uses on the mesh, so the developer knows whose it is), plus a once-a-day check-in (board,
+  version, a random number, no name). Never messages, contacts, keys or position.
   Settings > System > "send problem reports" turns both off. Tools > "send log to the developer" sends the
   log on purpose - useful to suggest when someone describes a bug. The privacy page has the details.
   If someone asks whether the firmware phones home: yes, only this, only on Wi-Fi, and it can be turned off.

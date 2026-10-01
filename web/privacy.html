@@ -98,9 +98,11 @@ developer; those lines can include the device's name on the mesh, never messages
 checking GitHub for updates, map tiles from OpenStreetMap if you enabled that, and
 <b id="reports">problem reports</b>. If the device crashes or hits an error, it sends this site a
 short report: the firmware version, why it restarted, where it crashed, memory and battery, and the
-last lines of its own log with Wi-Fi names, channel names and the device's name taken out. Once a day
-it also checks in with just its board, its version and a random number that isn't linked to your mesh
-identity, so we know how many are in use. Never messages, contacts, keys or your position. Reports
+last lines of its own log with Wi-Fi names and channel names taken out. From pager 1.2.5 and T-Deck
+1.2.4-beta3 on, a report also carries the name your device uses on the mesh, so the developer knows
+whose it is and can ask you about it; earlier versions send no name. Once a day it also checks in
+with just its board, its version and a random number, with no name, so we know how many are in use.
+Never messages, contacts, keys or your position. Reports
 are emailed to the developer and kept for 30 days; the counts are kept with your IP address replaced
 by a scrambled code. Turn both off under <b>Settings &rarr; System &rarr; send problem reports</b>
 (pager 1.2.3 and later, and the T-Deck beta). Messages travel over LoRa radio, not the internet.
