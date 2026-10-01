@@ -119,6 +119,10 @@ bring back a pager that won't start. Neither erases the flash; don't tick
   First install. Back up to SD first (Settings > System > how to enable wi-fi
   updates does it for you): everything comes back from the card. Without a card
   your keys, channels and settings are still kept; contacts refill from adverts.
+- **Starting over?** From 1.2.5 the installer has two tick boxes under START.
+  *Start fresh* clears contacts, channels and messages and keeps your keys, name
+  and Wi-Fi. *Reset everything* clears the keys and settings too, and the pager
+  comes up as new. Exports and dated backups on the SD card are left alone.
 - After that, updates install themselves over Wi-Fi (Settings > System > install
   updates by itself turns that off, and then it asks first).
 - **Installer can't connect?** On the pager, Settings > System > usb flash mode,

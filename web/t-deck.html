@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css?v=7">
-<link rel="stylesheet" href="/assets/help.css?v=5">
+<link rel="stylesheet" href="/assets/help.css?v=6">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://squatchmesh.com/t-deck">
 <meta name="theme-color" content="#070b0a">
@@ -80,6 +80,13 @@
       updates, and waits for it to start. About two minutes. Chrome or Edge on a Mac, Windows or Linux
       computer; no drivers needed.</p>
       <button class="qs-btn" id="qs-start" data-flash data-kind="auto">START</button>
+      <!-- Shown by flasher.js once the firmware this page installs can do it. -->
+      <div class="qs-opts" id="qs-opts" hidden data-wipe-from="1.2.4-beta2">
+        <label class="qs-opt"><input type="checkbox" id="qs-fresh" autocomplete="off">
+          <span><b>Start fresh.</b> Clear the contacts, channels and messages. Keys, name and Wi-Fi are kept.</span></label>
+        <label class="qs-opt"><input type="checkbox" id="qs-reset" autocomplete="off">
+          <span><b>Reset everything.</b> Keys, contacts, settings, all of it. The T-Deck starts as new.</span></label>
+      </div>
       <p class="qs-fine">Your browser will ask which USB device to use &mdash; pick the one named
       <b>USB JTAG/serial debug unit</b> (on a Mac, <b>cu.usbmodem&hellip;</b>).</p>
     </div>
@@ -178,6 +185,6 @@
 </footer>
 
 <script src="/assets/app.js?v=9" defer></script>
-<script type="module" src="/assets/flasher.js?v=19"></script>
+<script type="module" src="/assets/flasher.js?v=20"></script>
 </body>
 </html>

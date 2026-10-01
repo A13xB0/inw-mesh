@@ -84,6 +84,65 @@ if (panel) {
   }
   let lastKind = "auto";
 
+  /* ---- starting fresh -------------------------------------------------------------
+     Two tick boxes under START: "start fresh" (contacts, channels and messages go;
+     keys, name and Wi-Fi stay) and "reset everything". Nothing is erased from here:
+     once the firmware is on and has answered, it is sent one line and clears itself
+     on its next start, before its radio or Wi-Fi are running. Older firmware doesn't
+     know the line, so the boxes only show once the firmware this page installs does
+     (data-wipe-from on the box; ?wipetest shows them regardless). */
+  const optsBox = document.getElementById("qs-opts");
+  const freshBox = document.getElementById("qs-fresh");
+  const resetBox = document.getElementById("qs-reset");
+  let latest = "";              // the version this page installs, read when it loads
+  let wipe = "";                // "", "keep-keys" or "everything": this run and its retries
+  // 1 if a is newer than b, -1 if older, 0 the same. A beta is older than its release.
+  function cmpVersion(a, b) {
+    const parse = (v) => {
+      const m = String(v).match(/^v?(\d+)\.(\d+)\.(\d+)(?:-\D*(\d+))?/);
+      return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? Infinity : +m[4]] : null;
+    };
+    const x = parse(a), y = parse(b);
+    if (!x || !y) return -1;
+    for (let i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+    return 0;
+  }
+  const ticked = () => (!optsBox || optsBox.hidden) ? ""
+    : resetBox && resetBox.checked ? "everything" : freshBox && freshBox.checked ? "keep-keys" : "";
+  if (optsBox && SUPPORTED) {
+    // A browser can bring a tick back with the page; these two never start ticked.
+    for (const b of [freshBox, resetBox]) if (b) b.checked = false;
+    if (freshBox && resetBox) {
+      freshBox.addEventListener("change", () => { if (freshBox.checked) resetBox.checked = false; });
+      resetBox.addEventListener("change", () => { if (resetBox.checked) freshBox.checked = false; });
+    }
+    fetch(new URL(INSTALL_MANIFEST, location.href).href, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        latest = (m && m.version) || "";
+        if (/[?&]wipetest\b/.test(location.search) || (latest && cmpVersion(latest, optsBox.dataset.wipeFrom || "") >= 0)) optsBox.hidden = false;
+      })
+      .catch(() => {});
+  }
+  // Asked before anything is touched. False: they backed out, and nothing starts.
+  function askWipe() {
+    const want = ticked();
+    if (want === "everything") {
+      const typed = window.prompt(named(
+        "Reset everything?\n\nThis removes the pager's keys, contacts, channels, messages, settings and saved Wi-Fi. " +
+        "It starts as a new device with a new identity, so people will have to add you again.\n\n" +
+        "Exports and dated backups on the SD card are left alone. It can't be undone.\n\nType RESET to go ahead."));
+      if (!typed || typed.trim().toUpperCase() !== "RESET") return false;
+    } else if (want === "keep-keys") {
+      if (!window.confirm(named(
+        "Start fresh?\n\nThis removes every contact, channel and message from the pager, and its own copies of them on the SD card. " +
+        "Your keys, name, radio settings and Wi-Fi are kept.\n\nIt can't be undone."))) return false;
+    }
+    wipe = want;
+    return true;
+  }
+  const wipeWords = () => (wipe === "everything" ? "reset everything" : "start fresh");
+
   const show = (title, cls) => { panel.hidden = false; head.textContent = named(title); head.className = "fl-head " + cls; };
   const say = (text) => { note.textContent = named(text); };
   const pct = (n) => { bar.style.width = Math.max(0, Math.min(100, n)) + "%"; };
@@ -216,7 +275,7 @@ if (panel) {
         if (chunk.timeout) continue;
         if (!chunk || chunk.done) break;
         text += dec.decode(chunk.value, { stream: true });
-        if (mark && text.indexOf(mark) >= 0) break;
+        if (mark && (mark.test ? mark.test(text) : text.indexOf(mark) >= 0)) break;   // a string, or a pattern
       }
     } catch (e) {
       /* whatever we heard is what we use */
@@ -245,7 +304,10 @@ if (panel) {
      listen through that start. Never reopen: if the one listen gets nothing,
      the answer is "look at the pager". */
   const BOOT_QUIET_MS = 20000;
-  async function listenForBoot(ms) {
+  // version: what was just written. If they asked to start fresh, the request goes
+  // out on this same open, and only to the firmware we wrote (it is the one known
+  // to understand it).
+  async function listenForBoot(ms, version) {
     const until = Date.now() + ms;
     const info = (() => { try { return port.getInfo(); } catch (e) { return {}; } })();
     const same = (p) => { try { const i = p.getInfo(); return i.usbVendorId === info.usbVendorId && i.usbProductId === info.usbProductId; } catch (e) { return false; } };
@@ -298,6 +360,19 @@ if (panel) {
         const chunk = await next(500);
         if (chunk.done) break;
         if (chunk.value) text += dec.decode(chunk.value, { stream: true });
+      }
+      const st = text.match(/\[status\]\s+fw=(\S+)/);
+      if (wipe && st && (!version || st[1] === version)) {
+        log("[flasher] asking it to " + wipeWords());
+        const w = port.writable.getWriter();
+        try { await Promise.race([w.write(new TextEncoder().encode("\nwipe-" + wipe + "\n")), sleep(1000)]); }
+        finally { try { w.releaseLock(); } catch (e) {} }
+        const stop = Date.now() + 8000;
+        while (Date.now() < stop && !/\[wipe\] (ok|failed)[^\n]*\n/.test(text)) {
+          const chunk = await next(500);
+          if (chunk.done) break;
+          if (chunk.value) text += dec.decode(chunk.value, { stream: true });
+        }
       }
     } catch (e) {
       log("[flasher] lost the port (" + ((e && e.message) || e) + ")");
@@ -419,6 +494,7 @@ if (panel) {
     again.hidden = true;
     anywayBtn.hidden = true;
     if (startBtn) { startBtn.disabled = true; startBtn.classList.add("working"); startBtn.textContent = "WORKING…"; }
+    for (const b of [freshBox, resetBox]) if (b) b.disabled = true;
     logPre.textContent = "";
     pct(0);
     let writing = false;            // until then, a failure has changed nothing on the device
@@ -460,9 +536,22 @@ if (panel) {
       let wanted = kind;
       if (kind === "auto") {
         wanted = found.squatch ? "update" : "install";
+        // Already on the version this page installs, and asked to clear it: there is
+        // nothing to write. Send the request and stop there.
+        if (wipe && found.squatch && latest && found.version === latest) {
+          show(wipe === "everything" ? "Resetting the pager…" : "Clearing the pager…", "busy");
+          say("It's already on v" + latest + ", so nothing needs writing.");
+          log("[flasher] already on v" + latest + ": asking it to " + wipeWords() + ", no write");
+          if (usb.gone === port) await refindPort(8000);
+          const text = await converse("\nwipe-" + wipe + "\n", /\[wipe\] (ok|failed)[^\n]*\n/, 12000, 4000);
+          if (text.trim()) log(text.trim());
+          wipeOutcome(/\[wipe\] ok/.test(text), "v" + latest + " is on it and nothing was written.");
+          return;
+        }
         say(found.squatch
           ? "Squatch Mesh v" + found.version + " with the " + found.radio + " radio, " + found.contacts +
-            " contacts. Updating, so everything is kept."
+            " contacts. Updating, " + (wipe === "everything" ? "then resetting everything."
+              : wipe ? "then clearing its contacts, channels and messages." : "so everything is kept.")
           : "No Squatch Mesh on it (or it isn't running). Doing a full install.");
         log("[flasher] chose " + wanted + (found.squatch ? " (found v" + found.version + ")" : " (no answer to status)"));
         await sleep(1400);              // let them read it
@@ -516,7 +605,7 @@ if (panel) {
       // 4. did it come back up
       show("Written. Asking the pager how it is…", "busy");
       say("");
-      const boot = await listenForBoot(90000);
+      const boot = await listenForBoot(90000, version);
       if (boot.trim()) log(boot.trim());
       finish(wanted, version, boot, found);
     } catch (e) {
@@ -569,7 +658,29 @@ if (panel) {
       busy = false;
       anyway = false;               // "install anyway" covers one run, never the next
       if (startBtn) { startBtn.disabled = false; startBtn.classList.remove("working"); startBtn.textContent = "START"; }
+      for (const b of [freshBox, resetBox]) if (b) b.disabled = false;
     }
+  }
+
+  // The pager took the request to clear itself, or it didn't. lead: what is true
+  // about the firmware either way.
+  function wipeOutcome(ok, lead) {
+    if (ok) {
+      const all = wipe === "everything";
+      show(all ? "Done — reset, starting as new" : "Done — starting fresh", "ok");
+      say("The pager restarts twice while it clears, which can take a few minutes. Leave it switched on. " +
+          (all ? "It comes up as a new device with a new identity, and asks for your region again."
+               : "Its contacts, channels and messages are gone; your keys, name, radio settings and Wi-Fi are kept."));
+      wipe = "";
+      for (const b of [freshBox, resetBox]) if (b) b.checked = false;
+      return "ok";
+    }
+    show("Not cleared", "bad");
+    say((lead ? lead + " " : "") + "The pager didn't take the request to " + wipeWords() +
+        ", so nothing was removed. Press try again.");
+    logBox.open = true;
+    again.hidden = false;
+    return "not-cleared";
   }
 
   function finish(kind, version, boot, before) {
@@ -603,6 +714,7 @@ if (panel) {
       report("wrong-version", { wrote: version, running: m[1], kind: kind, log: boot.split("\n").slice(-25).join("\n") });
       return "wrong-version";
     }
+    if (m && m[3] === "1" && wipe) return wipeOutcome(/\[wipe\] ok/.test(boot), "v" + m[1] + " is installed and running.");
     if (m && m[3] === "1") {
       show("Done — your pager is up", "ok");
       say("It answered: v" + m[1] + " running, " + m[2] + " radio working, " + m[4] + " contacts." +
@@ -638,6 +750,15 @@ if (panel) {
       return "boot-loop";
     }
     // Silence is not failure: it has usually finished starting before we can listen.
+    // But a pager that didn't answer was never asked to clear itself.
+    if (wipe) {
+      show("Written, but not cleared yet", "bad");
+      say("That wrote cleanly, but the pager didn't answer afterwards, so it wasn't asked to " + wipeWords() +
+          " and nothing was removed. Wait until it has finished starting (a first install can take a few minutes), " +
+          "then press try again: the firmware won't need writing a second time.");
+      again.hidden = false;
+      return "written";
+    }
     show("Written successfully", "ok");
     say("That wrote cleanly. The pager didn't answer afterwards, which is normal — it usually finishes " +
         "starting before the browser can listen. Look at the pager: if the screen is on and it isn't " +
@@ -665,9 +786,16 @@ if (panel) {
     // Refused as the wrong device: "try again" is most likely with another one
     // plugged in, so let the browser ask which.
     if (!anywayBtn.hidden) port = null;
+    // A retry keeps what was agreed to at START, unless the boxes were changed since.
+    if (!busy && wipe !== ticked() && !askWipe()) return;
     run(lastKind === "auto" ? "auto" : lastKind);
   });
-  anywayBtn.addEventListener("click", () => { if (busy) return; anyway = true; run(lastKind === "auto" ? "auto" : lastKind); });
+  anywayBtn.addEventListener("click", () => {
+    if (busy) return;
+    if (wipe !== ticked() && !askWipe()) return;
+    anyway = true;
+    run(lastKind === "auto" ? "auto" : lastKind);
+  });
 
   document.querySelectorAll("[data-flash]").forEach((b) => {
     if (!SUPPORTED) {
@@ -675,7 +803,7 @@ if (panel) {
       b.title = "Needs Chrome or Edge on a desktop";
       return;
     }
-    b.addEventListener("click", () => run(b.dataset.kind || "auto"));
+    b.addEventListener("click", () => { if (!busy && askWipe()) run(b.dataset.kind || "auto"); });
   });
 
   if (!SUPPORTED) {

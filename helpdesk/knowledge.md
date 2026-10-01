@@ -114,6 +114,14 @@ Installing and flashing
   flash. New Firefox versions can try, but its USB support is new and has failed to open the pager's
   port (seen on a Mac): Chrome or Edge is the reliable choice.
 - The installer never needs "erase device" ticked. Erasing wipes contacts, channels and messages.
+- Starting over on purpose (pager 1.2.5 and later, T-Deck 1.2.4-beta2 and later): two tick boxes under
+  START on the install page. "Start fresh" clears contacts, channels and messages, and the device's own
+  copies of them on the SD card; it keeps the keys, name, radio settings, saved Wi-Fi and device settings.
+  "Reset everything" clears the keys and every setting too: the device comes up as new with a new
+  identity and asks for the region again, and other people have to add it again. Neither touches exports
+  or dated backups on the SD card. A device already on the installer's version isn't re-flashed, only
+  cleared. The boxes aren't shown while the installer's firmware is older than that. Neither can be
+  undone: only suggest them when the person wants to start over or is passing the device on.
 - If no port shows up: try a different USB cable (many are charge-only), a different USB port, and
   follow the "If something goes wrong" section of https://squatchmesh.com/install.
 - If a pager won't start after installing, follow "It will not start afterwards" on the install page
