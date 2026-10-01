@@ -31,11 +31,12 @@ four of your own), and never leaves your computer and device.
 | **Blocks** | ![Blocks lock](web/assets/img/anim-blocks-v4.webp) | ![Blocks home](docs/img/home-blocks.png) |
 | **Hero** | ![Hero lock](web/assets/img/anim-hero-v4.webp) | ![Hero home](docs/img/home-hero.png) |
 | **Aurora** | ![Aurora lock](web/assets/img/anim-aurora-v4.webp) | ![Aurora home](docs/img/home-aurora.png) |
-| **Halloween** | ![Halloween lock](web/assets/img/anim-halloween-v1.webp) | ![Halloween home](docs/img/home-halloween.png) |
+| **Halloween** | ![Halloween lock](web/assets/img/anim-halloween-v2.webp) | ![Halloween home](docs/img/home-halloween.png) |
 
-In Halloween the sasquatch wears a different costume every time the device restarts
+In Halloween the sasquatch wears a different costume every time the screen comes on
 (zombie, witch, vampire, ghost, pumpkin head, skeleton, mummy) and walks somewhere
-different: a street, a graveyard, a pumpkin patch or the woods.
+different: a street, a graveyard, a pumpkin patch or the woods. It has its own screen
+changes too: slime, bats, creaking doors, a jack-o'-lantern and lightning.
 
 ## Features
 
