@@ -203,7 +203,18 @@ T-Deck beta (1.2.2-beta6 and later)
 - It has a Bluetooth console for the developer's tools (admin password only); phones won't list it in
   Bluetooth settings, which is normal.
 
-T-Deck 1.2.4-beta2 (released 2026-09-30, the current T-Deck beta)
+T-Deck 1.2.4-beta3 (released 2026-10-01, the current T-Deck beta)
+- A flat battery no longer makes it restart over and over. Below 3.3 V it shows "Battery empty", sleeps, and
+  starts by itself once a charger has lifted it to 3.5 V (it looks every 3 minutes; a trackball click makes it
+  look now). If someone says their T-Deck shows "Battery empty" and won't start: charge it for 15 minutes or
+  more. If they are sure it is charged, holding the trackball down while the message shows starts it anyway,
+  and sliding the power switch off and on clears the wait - then hand it to the developer, since the reading
+  may be wrong on that unit.
+- A T-Deck that turned itself off for an empty battery comes back on by itself once charged.
+- Problem reports carry the T-Deck's mesh name (see Problem reports above).
+- A map tile that fails to download no longer holds the next ones up.
+
+T-Deck 1.2.4-beta2 (released 2026-09-30)
 - Battery: the T-Deck has no charger chip, so it works out "plugged in" from the battery voltage. Up to
   beta1 its own screen or Wi-Fi switching off raised the voltage enough to look like a charger: it showed
   charging with nothing plugged in, and the percentage could be far off (one report: 19%, then 55% half
