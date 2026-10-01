@@ -38,6 +38,13 @@ const INSTALL_MANIFEST = CFG.install || "https://bambam1121.github.io/inw-mesh/m
 // Built-in PSRAM the chip must report (eFuses) before anything is written: "8MB"
 // on the T-Deck's page. The pager's page sets nothing.
 const NEED_PSRAM = CFG.needPsram || "";
+// The other way round, on the pager's page: built-in PSRAM that means it is a
+// different board (data-refuse-psram="8MB" is a T-Deck's chip), what to call that
+// board, and where its installer is. A T-Deck on other firmware was once given the
+// pager's (2026-10-01): it says nothing to "status", so only its chip can tell.
+const REFUSE_PSRAM = CFG.refusePsram || "";
+const REFUSE_NAME = CFG.refuseName || "T-Deck";
+const REFUSE_LINK = CFG.refuseLink || "/t-deck";
 // How to put the chip into its USB loader by hand, per board.
 const LOADER_HOW = BOARD === "t-deck"
   ? "turn the T-Deck off, hold the trackball down while you switch it back on, then let go"
@@ -460,6 +467,18 @@ if (panel) {
           throw e;
         }
       }
+      if (REFUSE_PSRAM && !anyway) {
+        let feats = "";
+        try { feats = String(await loader.chip.getChipFeatures(loader)); } catch (e) { feats = ""; }   // unreadable: carry on
+        if (feats.indexOf("Embedded PSRAM " + REFUSE_PSRAM) >= 0) {
+          log("[flasher] chip: " + feats + " - built-in " + REFUSE_PSRAM + " PSRAM, so a " + REFUSE_NAME + ", not a " + DEVICE + ". Nothing written.");
+          await restart(transport);        // back to the firmware it had
+          const e = new Error("wrong hardware");
+          e.wrongHardware = feats;
+          e.looksLike = REFUSE_NAME;
+          throw e;
+        }
+      }
       const total = parts.reduce((n, p) => n + p.data.length, 0);
       await loader.writeFlash({
         fileArray: parts.map((p) => ({ data: p.data, address: p.address })),
@@ -610,7 +629,19 @@ if (panel) {
       finish(wanted, version, boot, found);
     } catch (e) {
       const msg = (e && e.message) || String(e);
-      if (e && e.wrongHardware) {
+      if (e && e.looksLike) {
+        show("That looks like a " + e.looksLike + ", not a " + DEVICE, "bad");
+        note.textContent = "";
+        note.append("Nothing was written, and it's back on the firmware it had. Its chip is the one a " + e.looksLike +
+                    " has. Use the ");
+        const a = document.createElement("a");
+        a.href = REFUSE_LINK; a.textContent = e.looksLike + " installer";
+        note.append(a, " for it. If you're sure it's a " + DEVICE + ", press install anyway.");
+        logBox.open = true;
+        again.hidden = false;
+        offerAnyway();
+        report("wrong-hardware", { kind: lastKind, features: e.wrongHardware, log: logPre.textContent.split("\n").slice(-20).join("\n") });
+      } else if (e && e.wrongHardware) {
         show("This doesn't look like a " + DEVICE, "bad");
         say("Nothing was written, and it's back on the firmware it had. Every " + DEVICE + " has " + NEED_PSRAM +
             " of memory (PSRAM) built into its chip; this one's chip has none" +
