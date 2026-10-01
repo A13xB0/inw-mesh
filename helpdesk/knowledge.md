@@ -189,7 +189,11 @@ Your own themes (pager 1.2.6 and later, T-Deck 1.2.4-beta4 and later)
   can be fixed by choosing another theme in Settings > Theme, or by sending it again with the
   same name and better colours.
 
-New in 1.2.5 (released 2026-10-01, the current pager release; there was no official 1.2.4, only a beta)
+New in 1.2.6 (released 2026-10-01, the current pager release)
+- The Halloween theme (see "Halloween theme" above).
+- Themes of your own from squatchmesh.com/theme-maker (see "Your own themes" above).
+
+New in 1.2.5 (released 2026-10-01; there was no official 1.2.4, only a beta)
 - A redrawn sasquatch on the lock screen: fur, a face, he waves, blinks and moves his mouth when he talks.
 - "Stay on while held": the screen stays on while the pager is in your hand. Settings > Display, the last item.
 - Problem reports now carry the name the pager uses on the mesh (see Problem reports below).
@@ -232,7 +236,12 @@ T-Deck beta (1.2.2-beta6 and later)
 - It has a Bluetooth console for the developer's tools (admin password only); phones won't list it in
   Bluetooth settings, which is normal.
 
-T-Deck 1.2.4-beta3 (released 2026-10-01, the current T-Deck beta)
+T-Deck 1.2.4-beta4 (released 2026-10-01, the current T-Deck beta)
+- The Halloween theme and themes of your own from squatchmesh.com/theme-maker, the same as pager 1.2.6
+  (see "Halloween theme" and "Your own themes" above). On the T-Deck you can tap the sasquatch in his
+  costume just as in the other themes.
+
+T-Deck 1.2.4-beta3 (released 2026-10-01)
 - A flat battery no longer makes it restart over and over. Below 3.3 V it shows "Battery empty", sleeps, and
   starts by itself once a charger has lifted it to 3.5 V (it looks every 3 minutes; a trackball click makes it
   look now). If someone says their T-Deck shows "Battery empty" and won't start: charge it for 15 minutes or
