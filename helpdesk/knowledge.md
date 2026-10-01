@@ -160,6 +160,17 @@ Data
 - Contacts and channels are kept on the pager and, with an SD card, also backed up to it. Loss of
   contacts or messages is always worth handing off to the developer.
 
+New in 1.2.5 (released 2026-10-01, the current pager release; there was no official 1.2.4, only a beta)
+- A redrawn sasquatch on the lock screen: fur, a face, he waves, blinks and moves his mouth when he talks.
+- "Stay on while held": the screen stays on while the pager is in your hand. Settings > Display, the last item.
+- Problem reports now carry the name the pager uses on the mesh (see Problem reports below).
+- Fixed: the map with no SD card in (it crawled and could crash; it now keeps downloaded tiles in memory and
+  loses them when the map is closed), a failed map tile holding up the next ones, a chime on plugging in when
+  already full (95% or more), "1 hops", and the sasquatch's late-night hellos (10 pm to 5 am).
+- Still open: a rare crash on the map while a downloaded tile is saved to an SD card. If someone reports the
+  map restarting the pager, hand it to the developer.
+- Pagers on 1.2.3 or later install it by themselves when idle on Wi-Fi.
+
 New in 1.2.3 (the release after the 1.2.2 beta; 1.2.2 was only ever a beta, 1.2.3 has all of it)
 - Updates install by themselves: on Wi-Fi it checks when Wi-Fi connects and every 6 hours, and puts a new
   official release in once the pager is idle (screen off 2 minutes, charging or above 30%, no SOS or phone
