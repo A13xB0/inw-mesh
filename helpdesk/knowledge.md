@@ -160,6 +160,24 @@ Data
 - Contacts and channels are kept on the pager and, with an SD card, also backed up to it. Loss of
   contacts or messages is always worth handing off to the developer.
 
+Your own themes (pager 1.2.6 and later, T-Deck 1.2.4-beta4 and later)
+- squatchmesh.com/theme-maker makes a theme of your own: pick one of the four looks to build on (it sets
+  the lock scene, card shape, sounds and screen changes), pick the colours, give it any name (up to 20
+  letters), and watch a live preview of the real screens. Then plug the device in with a USB data cable and
+  press the send button. No reflash: the device restarts once when the page connects, takes the theme,
+  switches to it, and lists it in Settings > Theme under the four built-in ones.
+- Sending needs Chrome or Edge on a computer, the same as the installer. Phones, Safari and Firefox can't
+  send over USB; the page still works there for designing, and gives a link to open on a computer.
+- Up to four of your own themes on a device. Sending one with a name it already has replaces that one.
+  When it has four, take one off first: the page lists what's on the device with "remove" beside each.
+- Nothing leaves their computer: the theme goes over the USB cable to the device and nowhere else. It is
+  not sent to the website, not shared on the mesh, and other people never see the name.
+- Themes stay through restarts and firmware updates. A full erase (installer "start fresh") removes them.
+- "This firmware is from before themes": update first (Settings > System > check for updates), then send.
+- If a colour choice makes text hard to read the page warns about it; a theme that came out unreadable
+  can be fixed by choosing another theme in Settings > Theme, or by sending it again with the
+  same name and better colours.
+
 New in 1.2.5 (released 2026-10-01, the current pager release; there was no official 1.2.4, only a beta)
 - A redrawn sasquatch on the lock screen: fur, a face, he waves, blinks and moves his mouth when he talks.
 - "Stay on while held": the screen stays on while the pager is in your hand. Settings > Display, the last item.

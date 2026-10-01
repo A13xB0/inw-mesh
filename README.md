@@ -20,6 +20,11 @@ Each theme changes the colours, the lock-screen scene and its character, the scr
 changes, the card style, the sounds, the vibration and the charging splash.
 (Lock screens are the firmware's own drawing; home screens are screenshots.)
 
+You can also make your own: [squatchmesh.com/theme-maker](https://squatchmesh.com/theme-maker)
+lets you pick the colours and a name, shows the real screens as you go, and sends the
+theme to the device over USB. It shows up in Settings with the built-in ones (up to
+four of your own), and never leaves your computer and device.
+
 | | Lock screen | Home |
 |---|---|---|
 | **Squatch** | ![Squatch lock](web/assets/img/anim-squatch-v4.webp) | ![Squatch home](docs/img/home-inw.png) |

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Make your own theme &middot; Squatch Mesh</title>
+<meta name="description" content="Pick your own colours for Squatch Mesh, see them on the real screens, name the theme and put it on your T-Lora Pager or T-Deck over USB. Nothing leaves your computer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css?v=7">
+<link rel="stylesheet" href="/assets/thememaker.css?v=1">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://squatchmesh.com/theme-maker">
+<meta name="theme-color" content="#070b0a">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Squatch Mesh">
+<meta property="og:title" content="Make your own theme - Squatch Mesh">
+<meta property="og:description" content="Pick your own colours, see them on the real screens, and put the theme on your pager or T-Deck over USB.">
+<meta property="og:url" content="https://squatchmesh.com/theme-maker">
+<meta property="og:image" content="https://squatchmesh.com/assets/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/" aria-label="Squatch Mesh home"><img src="/assets/favicon.svg" width="30" height="30" alt=""><span>Squatch Mesh</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu"><span></span></button>
+    <nav id="site-nav" class="nav-links" aria-label="Main">
+      <a class="link" href="/downloads">Downloads</a>
+      <a class="link" href="/features">Features</a>
+      <a class="link" href="/themes" aria-current="page">Themes</a>
+      <a class="link" href="/guide">Guide</a>
+      <a class="link" href="/help">Help</a>
+      <a class="btn solid" href="/install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <div class="tag" style="margin-top:46px"><a href="/themes" style="color:inherit;text-decoration:none">themes</a> / your own</div>
+  <h1>Make your own theme</h1>
+  <p class="sub">Pick your colours, give it a name, and put it on your pager or T-Deck over USB.
+  It shows up in <b>Settings &rarr; Theme</b> next to the four built-in ones. Everything happens in
+  this browser and on your device: nothing is uploaded, and nobody else sees it.</p>
+
+  <div class="tm" id="tm" hidden>
+    <!-- ---------------------------------------------------------------- the controls -->
+    <div class="tm-controls">
+
+      <section class="panel tm-step" aria-labelledby="tm-h-look">
+        <h2 class="tm-h" id="tm-h-look"><span class="tm-n">1</span> Start from a look</h2>
+        <p class="tm-note">The look decides the lock-screen picture, the shapes, the sounds and the buzz. The colours are yours.</p>
+        <div class="tm-looks" id="tm-looks" role="radiogroup" aria-label="Look"></div>
+      </section>
+
+      <section class="panel tm-step" aria-labelledby="tm-h-colours">
+        <h2 class="tm-h" id="tm-h-colours"><span class="tm-n">2</span> Choose your colours</h2>
+        <p class="tm-note">Click a colour to change it. Point at one to see where it is used.</p>
+        <div class="tm-swatches" id="tm-main"></div>
+
+        <div class="tm-presets">
+          <span class="tm-presets-label">Or try one:</span>
+          <div class="tm-chips" id="tm-presets"></div>
+        </div>
+
+        <p class="tm-warn" id="tm-warn" role="status" hidden></p>
+
+        <details class="tm-more" id="tm-more">
+          <summary>Every colour (10 more)</summary>
+          <p class="tm-note">These follow your main colours until you set one yourself. Tick <i>auto</i> to let it follow again.</p>
+          <div class="tm-swatches tm-swatches-all" id="tm-all"></div>
+        </details>
+      </section>
+
+      <section class="panel tm-step" aria-labelledby="tm-h-name">
+        <h2 class="tm-h" id="tm-h-name"><span class="tm-n">3</span> Name it</h2>
+        <label class="tm-name">
+          <input id="tm-name" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="My theme" aria-describedby="tm-name-note">
+          <span class="tm-count" id="tm-count" aria-hidden="true">0/20</span>
+        </label>
+        <p class="tm-note" id="tm-name-note">Whatever you like, up to 20 characters. Plain letters, numbers and signs: the menu's font has no accents or emoji.</p>
+      </section>
+
+      <section class="panel tm-step" aria-labelledby="tm-h-send">
+        <h2 class="tm-h" id="tm-h-send"><span class="tm-n">4</span> Put it on your device</h2>
+        <p class="tm-note">Plug your pager or T-Deck into this computer with a USB cable and switch it on.
+        It restarts once when the browser connects, which is normal, and nothing on it is lost.</p>
+        <div class="tm-send">
+          <button class="btn solid lg" id="tm-send" type="button">Send to my device</button>
+          <button class="btn small" id="tm-disconnect" type="button" hidden>Disconnect</button>
+        </div>
+        <p class="tm-unsupported" id="tm-unsupported" hidden>Sending over USB needs <b>Chrome or Edge on a computer</b>.
+        You can still design here: copy the link below and open it in Chrome or Edge to send it.</p>
+        <div class="tm-status" id="tm-status" role="status" aria-live="polite" hidden>
+          <b class="tm-status-head" id="tm-status-head"></b>
+          <span id="tm-status-note"></span>
+        </div>
+        <div class="tm-device" id="tm-device" hidden>
+          <h3 id="tm-device-head">On your device</h3>
+          <ul class="tm-device-list" id="tm-device-list"></ul>
+        </div>
+        <details class="tm-log" id="tm-log" hidden>
+          <summary>What was said over USB</summary>
+          <pre id="tm-log-pre"></pre>
+        </details>
+        <p class="tm-note tm-need">Needs Squatch Mesh <b>1.2.6</b> or later on the pager, or <b>1.2.4-beta4</b> or later on the T-Deck.
+        Older? <a href="/install">Update the pager</a> or <a href="/t-deck">the T-Deck</a> first.</p>
+      </section>
+
+      <section class="panel tm-step tm-share" aria-labelledby="tm-h-share">
+        <h2 class="tm-h" id="tm-h-share">Keep it or pass it on</h2>
+        <p class="tm-note">Your design stays in this browser, so it is here next time. The link below holds the
+        whole theme in the address itself: send it to a friend, or open it on another computer.</p>
+        <div class="tm-send">
+          <button class="btn small" id="tm-copy" type="button">Copy a link to this theme</button>
+          <button class="btn small" id="tm-reset" type="button">Start over</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ----------------------------------------------------------------- the preview -->
+    <div class="tm-preview">
+      <div class="tm-preview-inner">
+        <div class="tm-tabs tm-boards" id="tm-boards" role="tablist" aria-label="Device"></div>
+        <div class="tm-screen-wrap" id="tm-screen-wrap">
+          <canvas id="tm-canvas" width="480" height="222" aria-label="How your theme looks on the device"></canvas>
+        </div>
+        <div class="tm-tabs" id="tm-screens" role="tablist" aria-label="Screen"></div>
+        <p class="tm-cap" id="tm-cap">These are the real screens, drawn by the firmware and recoloured here as you pick.</p>
+      </div>
+    </div>
+  </div>
+
+  <noscript><div class="panel warn" style="margin-top:26px"><p class="sub" style="margin:0">The theme maker needs JavaScript.</p></div></noscript>
+  <div class="panel warn" id="tm-failed" style="margin-top:26px" hidden><p class="sub" style="margin:0">The theme maker's pictures
+  didn't load. Check your connection and reload the page.</p></div>
+
+  <h2>Good to know</h2>
+  <div class="panel reveal">
+    <p class="sub" style="font-size:14px"><b>Up to four of your own.</b> Send one with a name you have used before and it
+    replaces that one. Connect and you can take any of them off again from this page.</p>
+    <p class="sub" style="font-size:14px"><b>Light themes work.</b> Pick a pale background and dark text: names, bubbles and
+    the rest follow. If writing gets hard to read, the page says so.</p>
+    <p class="sub" style="font-size:14px;margin:0"><b>It is only on your device.</b> Other people on the mesh see your messages,
+    not your colours. A theme is 15 colours and a name, kept in the device's settings.</p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div class="footer-brand">
+      <a class="logo" href="/"><img src="/assets/favicon.svg" width="30" height="30" alt=""><span>Squatch Mesh</span></a>
+      <p>Free, open-source MeshCore firmware for the LilyGo T-Lora Pager, and the T-Deck in beta. Made in the Inland Northwest.</p>
+    </div>
+    <nav class="footer-col" aria-label="Product"><h4>Product</h4>
+      <a href="/features">Features</a><a href="/themes">Themes</a><a href="/install">Install</a><a href="/downloads">Downloads</a><a href="/releases">Releases</a></nav>
+    <nav class="footer-col" aria-label="Learn"><h4>Learn</h4>
+      <a href="/guide">Guide</a><a href="/help">Help &amp; feedback</a><a href="mailto:support@squatchmesh.com">Email support</a><a href="/mesh">How the mesh works</a><a href="/hardware">Hardware</a></nav>
+    <nav class="footer-col" aria-label="Project"><h4>Project</h4>
+      <a href="https://github.com/BamBam1121/inw-mesh">GitHub</a><a href="https://meshcore.io">MeshCore</a><a href="https://bambam1121.github.io/inw-mesh/">Plain installer</a><a href="/privacy">Privacy</a></nav>
+  </div>
+  <div class="wrap footer-base">
+    <span>GPL-3.0 &middot; <span data-version>latest release</span></span>
+    <span>Independent project. Not affiliated with LilyGo or the MeshCore project.</span>
+  </div>
+  <div class="wrap" style="border-top:1px solid var(--line);padding-top:16px;padding-bottom:26px;font-size:14px;color:var(--muted)">
+    Local mesh friends: <a href="https://inlandnwmesh.org/" rel="noopener">Inland NW Mesh</a> &middot;
+    <a href="https://scope.inwmesh.org/" rel="noopener">CoreScope</a> (live mesh map)
+  </div>
+</footer>
+
+<script src="/assets/app.js?v=8" defer></script>
+<script type="module" src="/assets/thememaker.js?v=1"></script>
+</body>
+</html>

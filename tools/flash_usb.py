@@ -28,7 +28,9 @@ RTC_CNTL_OPTION1_REG = 0x6000812C
 BUILD = os.path.join(HERE, "..", ".pio", "build", "t-lora-pager")
 FW = sys.argv[1] if len(sys.argv) > 1 else os.path.join(BUILD, "firmware.bin")
 PORT = sys.argv[2] if len(sys.argv) > 2 else "COM5"
-ESPTOOL = os.path.expanduser("~/.platformio/packages/tool-esptoolpy/esptool.py")
+# PlatformIO's esptool with the S3's watchdogs switched off properly: without that a
+# write over USB is cut off about 8 seconds in (see esptool_s3.py).
+ESPTOOL = os.path.join(HERE, "esptool_s3.py")
 # Our own bootloader. It boots this board now that the build stamps it 16MB
 # (board_upload.flash_size); the old 8MB one reset forever.
 BOOTLOADER = os.path.join(BUILD, "bootloader.bin")
@@ -132,8 +134,8 @@ def main():
         # Say what state it is in rather than rebooting into a half-written app
         # and letting it look like dead hardware.
         print("")
-        print("The write did not complete. The pager holds an incomplete app and")
-        print("will not boot until it is flashed again. Re-run this command, or")
+        print("The write did not complete. The pager may hold an incomplete app; if")
+        print("so it starts its other copy, or stays dark. Re-run this command, or")
         print("use the web installer. Your contacts and channels are untouched.")
         sys.exit(1)
 
