@@ -160,6 +160,17 @@ Data
 - Contacts and channels are kept on the pager and, with an SD card, also backed up to it. Loss of
   contacts or messages is always worth handing off to the developer.
 
+Halloween theme (pager 1.2.6 and later, T-Deck 1.2.4-beta4 and later)
+- A fifth built-in theme: Settings > Theme > Halloween. Orange and purple, and the sasquatch on the lock
+  screen is in costume: zombie, witch, vampire, ghost, pumpkin head, skeleton or mummy.
+- The costume changes every time the device restarts, and so does where he walks (a street of houses, a
+  graveyard, a pumpkin patch, the woods). It moves on to the next one each start; there is no setting to
+  pick one. To see another, restart the device.
+- Its sounds are short tunes with a rhythm instead of plain beeps (start-up, message, direct message,
+  mention, plugging in), and its vibration is a heartbeat. Volume and "sound off" work as for any theme.
+- It has the Squatch theme's cards and screen changes. It can't be used as the look for a theme of your
+  own in the theme maker (that offers Squatch, Blocks, Hero and Aurora).
+
 Your own themes (pager 1.2.6 and later, T-Deck 1.2.4-beta4 and later)
 - squatchmesh.com/theme-maker makes a theme of your own: pick one of the four looks to build on (it sets
   the lock scene, card shape, sounds and screen changes), pick the colours, give it any name (up to 20

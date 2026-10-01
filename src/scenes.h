@@ -277,9 +277,16 @@ inline void aurora(lgfx::LovyanGFX& d, const Theme& t, float phase, float scroll
   auroraGround(d, t, phase, scroll, unread);
 }
 
+#include "scene_halloween.h"
+
 // The lock screen's scene for a theme style, leaning lx, ly.
 inline void lockScene(lgfx::LovyanGFX& d, const Theme& t, uint8_t style, float phase, float scroll, bool unread,
                       uint8_t batteryPct, uint16_t unreadCount, float lx = 0, float ly = 0) {
+  if (t.scene == SCENE_HALLOWEEN) {
+    halloween(d, t, SpookyFrame{480, GROUND, 250, false, slideX(lx, SKY), slideY(ly, SKY), slideX(lx, FAR), slideY(ly, FAR)},
+              phase, scroll, unread);
+    return;
+  }
   switch (style) {
     case STYLE_BLOCKS: blocks(d, t, phase, scroll, unread, lx, ly); break;
     case STYLE_HERO:   hero(d, t, phase, scroll, unread, batteryPct, unreadCount, lx, ly); break;
