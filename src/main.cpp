@@ -370,6 +370,8 @@ void app::pluggedInFeedback() {
   nav.statusChanged();
   if (!dimmer.asleep()) fx::charge(app::batteryPct());   // the theme's charging splash
   if (quietHours()) return;
+  // Full already: no chime and no tap for a charger that is only topping it up.
+  if (app::batteryPct() >= 95) return;
   if (ui_settings.vibrate) { static const uint8_t TAP[] = {47}; haptic.pattern(TAP, 1); }
   if (ui_settings.sound) jingle.play(themeSpec().charge);
 }
