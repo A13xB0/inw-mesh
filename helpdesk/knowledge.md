@@ -114,14 +114,6 @@ Installing and flashing
   flash. New Firefox versions can try, but its USB support is new and has failed to open the pager's
   port (seen on a Mac): Chrome or Edge is the reliable choice.
 - The installer never needs "erase device" ticked. Erasing wipes contacts, channels and messages.
-- Starting over on purpose (pager 1.2.5 and later, T-Deck 1.2.4-beta2 and later): two tick boxes under
-  START on the install page. "Start fresh" clears contacts, channels and messages, and the device's own
-  copies of them on the SD card; it keeps the keys, name, radio settings, saved Wi-Fi and device settings.
-  "Reset everything" clears the keys and every setting too: the device comes up as new with a new
-  identity and asks for the region again, and other people have to add it again. Neither touches exports
-  or dated backups on the SD card. A device already on the installer's version isn't re-flashed, only
-  cleared. The boxes aren't shown while the installer's firmware is older than that. Neither can be
-  undone: only suggest them when the person wants to start over or is passing the device on.
 - If no port shows up: try a different USB cable (many are charge-only), a different USB port, and
   follow the "If something goes wrong" section of https://squatchmesh.com/install.
 - If a pager won't start after installing, follow "It will not start afterwards" on the install page
@@ -199,7 +191,18 @@ T-Deck beta (1.2.2-beta6 and later)
 - It has a Bluetooth console for the developer's tools (admin password only); phones won't list it in
   Bluetooth settings, which is normal.
 
-T-Deck 1.2.4-beta1 (released 2026-09-29, the current T-Deck beta)
+T-Deck 1.2.4-beta2 (released 2026-09-30, the current T-Deck beta)
+- Battery: the T-Deck has no charger chip, so it works out "plugged in" from the battery voltage. Up to
+  beta1 its own screen or Wi-Fi switching off raised the voltage enough to look like a charger: it showed
+  charging with nothing plugged in, and the percentage could be far off (one report: 19%, then 55% half
+  an hour later, unplugged). Fixed in beta2, and the percentage is closer to the truth. Anyone seeing that
+  on an older build should update. It still has no fuel gauge, so the percentage is an estimate.
+- No chime or buzz for plugging in when the battery is already full (95% or more).
+- The lock face is laid out for the T-Deck's own screen: a big clock in the middle, the date and unread
+  count on one line under it, and the scene's character in the middle rather than off to the right.
+- Circles and rounded corners (avatars, badges, cards, buttons) have smooth edges instead of jagged ones.
+
+T-Deck 1.2.4-beta1 (released 2026-09-29)
 - The talking sasquatch on the lock face (as on the pager), with his new look. On the T-Deck you tap him
   instead of shaking: he hops and says something; three taps quickly and he sees stars. Tapping anywhere
   else on the lock face still says "swipe up to unlock". Settings > Display > "sasquatch talks" turns it off.
