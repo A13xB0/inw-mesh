@@ -668,6 +668,18 @@ static void displayMenu() {
     app::setScreenChangesAnimate(!app::screenChangesAnimate());
     nav.toast(app::screenChangesAnimate() ? "screens change with the theme's animation" : "screens change at once", 3000);
   });
+  // Four bars in the status bar: how well the last packet was heard (dim after 5 min).
+  m->toggle("signal bars", [] { return app::signalBars(); }, [] { app::setSignalBars(!app::signalBars()); });
+  // With nothing heard for this long and the screen on, nearby repeaters are asked to
+  // answer (zero hop: the question is never repeated across the mesh).
+  m->adjust("signal check every", []() -> String {
+    return app::signalCheckMins() ? String(app::signalCheckMins()) + " min" : String("never");
+  }, [](int d) {
+    static const uint8_t steps[] = {0, 1, 2, 5, 10, 15, 30, 60};
+    int i = 0;
+    while (i < 7 && steps[i] < app::signalCheckMins()) i++;
+    app::setSignalCheckMins(steps[constrain(i + d, 0, 7)]);
+  });
   // Held up to be read, the screen doesn't time out (motion.h).
   m->toggle("stay on while held", [] { return motion::stayOnHeld(); }, [] {
     motion::setStayOnHeld(!motion::stayOnHeld());

@@ -122,6 +122,7 @@ public:
     scenes::mascotPose() = pose();        // blinking, talking, waving...
     scenes::lockScene(d, t, t.style, _phase, _scroll, hasUnread, app::batteryPct(), app::unread(), _lx, _ly);
     scenes::mascotLift() = 0;
+    drawLockSignal(d, t);
     scenes::mascotPose() = SquatchPose();
     drawTalk(d, t);
     d.fillRect(0, 172, L::W, L::H - 172, t.bg);
