@@ -494,6 +494,9 @@ void Nav::begin(LGFX* d, Theme* t) {
 // (popToHome, replaceTop) make one transition, from the first picture to the last.
 void Nav::beginTransition(uint8_t kind) {
   if (_trans || !_d || !top() || !app::animationsOk()) return;
+  // Going forward and back can be set to change at once (Settings > Display); locking
+  // and unlocking keep their animation.
+  if ((kind == (uint8_t)fx::Trans::Forward || kind == (uint8_t)fx::Trans::Back) && !app::screenChangesAnimate()) return;
   Canvas* old = fx::scratch();
   if (!old) return;
   compose();                               // exactly what's on the panel now

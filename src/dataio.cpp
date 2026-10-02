@@ -239,18 +239,35 @@ const char* sdTest(const char* what) {
     File f = SD.open(path, "w");
     if (!f) return "couldn't create it";
     Serial.println("[sdput] go");
+    // Each line: 8 hex digits of where it goes, the bytes in hex, 2 hex digits of their
+    // sum. A line that arrives whole and in turn is written and answered "."; one that
+    // was already taken is answered "." again; anything else "!", and the sender repeats.
+    // (Bytes do go missing on the way in now and then; without this a file stalled.)
     uint32_t got = 0, idle = millis();
-    int hi = -1, fill = 0;
-    while (got + fill < size && millis() - idle < 8000) {
+    static char ln[260];
+    int len = 0;
+    auto hex = [](char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1; };
+    while (got < size && millis() - idle < 15000) {
       const int c = Serial.read();
       if (c < 0) { delay(1); continue; }
       idle = millis();
-      if (c == '\n') { if (fill) { f.write(blk, fill); got += fill; fill = 0; } Serial.print('.'); continue; }
-      const int v = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
-      if (v < 0) continue;
-      if (hi < 0) hi = v; else { blk[fill++] = (uint8_t)(hi << 4 | v); hi = -1; if (fill == 512) { f.write(blk, 512); got += 512; fill = 0; } }
+      if (c != '\n') { if (c != '\r' && len < (int)sizeof(ln) - 1) ln[len++] = (char)c; continue; }
+      bool good = len >= 12 && (len % 2) == 0;
+      for (int i = 0; good && i < len; i++) good = hex(ln[i]) >= 0;
+      uint32_t at = 0;
+      int n = 0;
+      if (good) {
+        for (int i = 0; i < 8; i++) at = at << 4 | (uint32_t)hex(ln[i]);
+        n = (len - 10) / 2;
+        uint8_t sum = 0;
+        for (int i = 0; i < n; i++) { blk[i] = (uint8_t)(hex(ln[8 + i * 2]) << 4 | hex(ln[9 + i * 2])); sum += blk[i]; }
+        good = sum == (uint8_t)(hex(ln[len - 2]) << 4 | hex(ln[len - 1]));
+      }
+      len = 0;
+      // Answered with how much has been taken, so the sender always knows where to go on from.
+      if (good && at == got) { f.write(blk, n); got += n; }
+      if (got < size) Serial.printf("@%u\n", (unsigned)got);
     }
-    if (fill) { f.write(blk, fill); got += fill; }
     f.close();
     // What the card now holds, read back.
     File r = SD.open(path);

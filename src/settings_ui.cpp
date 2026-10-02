@@ -662,6 +662,12 @@ static void displayMenu() {
   // The lock screen's sasquatch and his speech bubble (squatch_talk.h).
   m->toggle("sasquatch talks", [] { return !ui_settings.squatchQuiet; },
             [] { ui_settings.squatchQuiet = !ui_settings.squatchQuiet; markUiDirty(); });
+  // Each theme animates the change from one screen to the next, about half a second a
+  // time. Off: screens change at once (waking, sleeping and locking still animate).
+  m->toggle("animate screen changes", [] { return app::screenChangesAnimate(); }, [] {
+    app::setScreenChangesAnimate(!app::screenChangesAnimate());
+    nav.toast(app::screenChangesAnimate() ? "screens change with the theme's animation" : "screens change at once", 3000);
+  });
   // Held up to be read, the screen doesn't time out (motion.h).
   m->toggle("stay on while held", [] { return motion::stayOnHeld(); }, [] {
     motion::setStayOnHeld(!motion::stayOnHeld());
