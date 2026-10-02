@@ -824,11 +824,11 @@ static void backupsMenu() {
     return st == SD_MOUNTED ? String((unsigned long)(sdFreeBytes() / 1048576ULL)) + " MB free"
          : st == SD_UNREADABLE ? String("can't be read") : String("not found");
   });
-  // A card the pager can't read (exFAT, or a Mac's partition scheme) can be made one it
+  // A card this device can't read (exFAT, or a Mac's partition scheme) can be made one it
   // can. Offered only then: a card that works is never formatted.
   if (sdState() == SD_UNREADABLE) {
-    m->action("format this card for the pager", [] {
-      confirm("Format the SD card?", "everything on the card is erased. it becomes FAT32, which the pager reads. large cards take a minute",
+    m->action("format this card", [] {
+      confirm("Format the SD card?", "everything on the card is erased. it becomes FAT32, which this device reads. large cards take a minute",
               [] {
                 nav.busy("formatting the card...");
                 const char* r = sdFormat();

@@ -368,6 +368,25 @@ void app::setScreenChangesAnimate(bool on) {
   Preferences p;
   if (p.begin("inw-fx", false)) { p.putBool("off", !on); p.end(); }
 }
+// Keys read while the loop is held up (a screen-change animation runs for half a
+// second) wait here, in order, until the loop takes them. Without this the T-Deck's
+// keyboard, which remembers only the last key pressed, lost what was typed meanwhile.
+static KeyEvent s_keyq[24];
+static uint8_t s_keyHead = 0, s_keyTail = 0;
+void app::keysPump() {
+  KeyEvent ev;
+  while (keyboard.read(ev)) {
+    const uint8_t next = (uint8_t)((s_keyHead + 1) % 24);
+    if (next == s_keyTail) break;                 // full: the rest stay with the keyboard
+    s_keyq[s_keyHead] = ev;
+    s_keyHead = next;
+  }
+}
+static bool nextKey(KeyEvent& ev) {
+  if (s_keyTail != s_keyHead) { ev = s_keyq[s_keyTail]; s_keyTail = (uint8_t)((s_keyTail + 1) % 24); return true; }
+  return keyboard.read(ev);
+}
+
 bool app::animationsOk() { return s_uiReady && !dimmer.asleep() && !s_panelOff; }
 
 // The side button waking the screen: the theme's turn-on animation, revealing
@@ -1728,7 +1747,7 @@ void loop() {
   char chars[16];
   uint8_t nchars = 0;
   KeyEvent ev;
-  while (keyboard.read(ev)) {
+  while (nextKey(ev)) {
     if (!ev.pressed) continue;
     anyKey = true;
     if (ev.index == KEY_IDX_BACKSPACE) backspace = true;

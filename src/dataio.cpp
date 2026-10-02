@@ -70,7 +70,7 @@ static bool sdRaw(const std::function<bool(uint8_t)>& fn) {
 }
 
 static bool fatVolume(const uint8_t* b) {
-  return b[510] == 0x55 && b[511] == 0xAA && (b[0] == 0xEB || b[0] == 0xE9) &&
+  return b[510] == 0x55 && b[511] == 0xAA && (b[0] == 0xEB || b[0] == 0xE9 || b[0] == 0xE8) &&
          (!memcmp(b + 54, "FAT", 3) || !memcmp(b + 82, "FAT32", 5));
 }
 
@@ -94,9 +94,16 @@ static SdState sdProbe() {
   return st;
 }
 
+// After a look that found nothing to mount, the next one waits 10 s: a look is a whole
+// card start-up, a good part of a second with no card in, and callers ask often.
+static uint32_t s_lookedAt = 0;
+static void sdLookAgain() { s_lookedAt = 0; }
+
 bool sdMount() {
   if (s_sd) return true;
+  if (s_lookedAt && millis() - s_lookedAt < 10000) return false;
   s_state = sdProbe();
+  s_lookedAt = millis() | 1;
   if (s_state != SD_MOUNTED) return false;
   inw_spi.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, -1);
   s_sd = SD.begin(PIN_SD_CS, inw_spi, 4000000, "/sd", 5, false);
@@ -107,11 +114,8 @@ bool sdMounted() { return s_sd; }
 uint64_t sdFreeBytes() { return s_sd ? SD.totalBytes() - SD.usedBytes() : 0; }
 
 SdState sdState() {
-  static uint32_t at = 0;
   if (s_sd) return SD_MOUNTED;
-  if (at && millis() - at < 10000) return s_state;   // a look is a whole card start-up: not every frame
-  at = millis() | 1;
-  sdMount();
+  sdMount();                                   // looks again only when the last look is 10 s old
   return s_sd ? SD_MOUNTED : s_state;
 }
 
@@ -119,6 +123,7 @@ SdState sdState() {
 // on it is erased. Only ever for a card that does not mount: a card that mounts is never
 // formatted, so backups and maps on a working card can't be lost this way.
 const char* sdFormat() {
+  sdLookAgain();
   if (s_sd || sdMount()) return "this card works: not formatting it";
   if (s_state != SD_UNREADABLE) return "no sd card";
   inw_spi.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, -1);
@@ -138,6 +143,7 @@ const char* sdTest(const char* what) {
   static uint8_t blk[512];
   static char msg[96];
   if (!strcmp(what, "info")) {
+    sdLookAgain();
     const SdState st = sdState();
     if (st == SD_MOUNTED) snprintf(msg, sizeof(msg), "mounted, type %d, %llu MB, %llu MB free", (int)SD.cardType(), (unsigned long long)(SD.cardSize() / 1048576ULL), (unsigned long long)(sdFreeBytes() / 1048576ULL));
     else snprintf(msg, sizeof(msg), "%s", st == SD_UNREADABLE ? "a card answers but can't be read" : "no card");
@@ -164,7 +170,7 @@ const char* sdTest(const char* what) {
     blk[446 + 12] = 0xFF; blk[446 + 13] = 0xFF; blk[446 + 14] = 0xFF; blk[446 + 15] = 0xFF;
     blk[510] = 0x55; blk[511] = 0xAA;
     const bool ok = SD.writeRAW(blk, 0);
-    SD.end(); s_sd = false; sdLetGo();
+    SD.end(); s_sd = false; sdLetGo(); sdLookAgain();
     return ok ? "block 0 is now a GUID card's; not mounted" : "write failed";
   }
   if (!strcmp(what, "back")) {                     // the kept block, put back
@@ -176,6 +182,7 @@ const char* sdTest(const char* what) {
     if (s_sd) ok = SD.writeRAW(blk, 0);
     else ok = sdRaw([](uint8_t pdrv) { return sd_write_raw(pdrv, blk, 0); });
     if (s_sd) { SD.end(); s_sd = false; sdLetGo(); }
+    sdLookAgain();
     if (!ok) return "couldn't write it back";
     snprintf(msg, sizeof(msg), "put back; %s", sdMount() ? "mounted again" : "NOT mounting");
     return msg;
