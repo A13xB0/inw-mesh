@@ -406,9 +406,23 @@ if (panel) {
   // Ask it to put contacts, channels and settings on flash before we reset it.
   // Firmware from 1.1.21 answers "[save]"; older builds ignore the line and we
   // carry on - no worse off than the old installer, which never asked at all.
+  //
+  // It answers "[save] ok" once everything is on flash, which it waits up to 10 s for.
+  // With a long contact list the write takes half a minute, so it answers "[save] slow"
+  // and carries on writing; that write reports "[save] /contacts3 ok" when it lands.
+  // Resetting before then loses whatever changed since the last save, so wait for it.
+  // (This used to stop listening after 8 s, before even the "ok" could arrive.)
   async function saveFirst() {
-    const text = await converse("\nsave\n", "[save]", 8000);
-    if (text.trim()) log(text.trim());
+    const t0 = Date.now();
+    const done = { test: (text) => {
+      if (/\[save\] ok contacts=/.test(text)) return true;
+      const slow = text.indexOf("[save] slow");
+      if (slow >= 0) return /\[save\] \/contacts3 (ok|FAILED)/.test(text.slice(slow));
+      // Talking, but nothing about saving after 15 s: firmware from before "save".
+      return Date.now() - t0 > 15000 && text.indexOf("[save]") < 0;
+    } };
+    const text = await converse("\nsave\n", done, 75000);
+    if (text.trim()) log(text.trim().split("\n").filter((l) => l.indexOf("[save]") >= 0).join("\n") || text.trim().slice(-300));
     return text.indexOf("[save]") >= 0;
   }
 
@@ -579,7 +593,7 @@ if (panel) {
       // 2. protect what is on it
       if (found.squatch) {
         show("Saving your data first…", "busy");
-        say("Telling the pager to write its contacts and settings to storage before anything is flashed.");
+        say("Telling the pager to write its contacts and settings to storage before anything is flashed. With a long contact list this can take up to a minute.");
         log(await saveFirst() ? "[flasher] pager saved its data" : "[flasher] no answer to save (older firmware)");
       }
 
