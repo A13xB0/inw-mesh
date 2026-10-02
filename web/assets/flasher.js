@@ -755,16 +755,18 @@ if (panel) {
       return "ok";
     }
     if (m && m[2] === "none" && BOARD === "t-lora-pager") {
-      // Neither radio the firmware drives answered. The browser can't see the radio before
-      // the firmware runs, so this is the first moment it can be said: most often it is a
-      // pager sold with another radio, which no install will change.
-      show("This pager's radio isn't one Squatch Mesh can use", "bad");
-      say("v" + m[1] + " is running, but neither an SX1262 nor an LR1121 radio answered" +
+      // Neither radio the firmware drives answered. Two things look like this and the
+      // browser can't tell them apart: a radio that didn't start this time (one pager was
+      // seen failing several times and then coming up), and a pager sold with a radio the
+      // mesh can't use. So: what to try first, then what to check. Never "it's broken".
+      show("It started, but its radio didn't answer", "bad");
+      say("v" + m[1] + " is installed and running, but the radio did not answer" +
           (before && before.radio === "none" ? " (the same as before this install)" : "") + ". " +
-          "LilyGo also sells this pager with a CC1101 or an SX1280 radio, and those can't join a MeshCore mesh: " +
-          "check what your order or the box says. If it is one of those, nothing is broken, but this firmware " +
-          "can't use it and installing again won't help. If yours is an SX1262 or LR1121, switch the pager " +
-          "fully off and on once; if the radio is still missing, tell the developer in the help box.");
+          "Installing again won't change that. First: take the SD card out if there is one, switch the pager " +
+          "fully off, wait ten seconds, and switch it on; this has brought a radio up before. " +
+          "If it still has no radio, check what your order or the box says: LilyGo sells this pager with an " +
+          "SX1262 or LR1121 radio (both work), and also with a CC1101 or SX1280, which can't join a MeshCore " +
+          "mesh. Then tell the developer in the help box which radio it is and whether an SD card was in.");
       logBox.open = true;
       again.hidden = false;
       report("radio", { kind: kind, version: version, before: before && before.radio, log: boot.split("\n").slice(-25).join("\n") });

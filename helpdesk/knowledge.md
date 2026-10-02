@@ -127,14 +127,17 @@ Two different radios - the most likely cause of "radio not responding"
 - So when someone says the radio doesn't work, FIRST ask their version (Settings > System > version).
   If it is older than 1.1.17, the fix is simply to update: Settings > System > check for updates over
   Wi-Fi (works without the radio), or the Update button on squatchmesh.com/install. No erase, nothing lost.
-- LilyGo also sells this pager with other radios: an SX1280 (2.4 GHz only), a CC1101 or an SI4432. Squatch
-  Mesh (and MeshCore) cannot use those: the mesh runs on an SX1262 or LR1121. A pager with one of them
-  boots, Wi-Fi works, but its status says radio=none and nothing goes in or out. So on 1.1.17 or later with
-  "radio=none", do NOT call it a hardware fault straight away: ask which radio version they bought (the
-  shop listing or the box says SX1262, LR1121, SX1280, CC1101 or SI4432). If it is not SX1262 or LR1121,
-  say plainly that this firmware can't drive that radio and nothing is broken. From the version after
-  1.2.7 the pager also tries its radio three times at start-up, so a single power-off and on is worth
-  asking for first.
+- On 1.1.17 or later with "radio=none" / "radio init failed: radio not responding", there are two causes
+  and they look the same, so do NOT say which it is and do NOT call it a hardware fault:
+  (1) The radio did not start this time. Seen for real on 2026-10-02: a pager on 1.2.7 reported no radio
+  on several starts in a row, then came up and worked. Reinstalling does not help. Ask them to: take the
+  SD card out if one is in, switch fully off, wait ten seconds, switch on. If the radio comes up, ask them
+  to put the card back and say whether it still does (the developer wants to know if the card matters).
+  (2) A pager sold with a radio the mesh can't use. LilyGo sells it with an SX1262 or LR1121 (both work)
+  and also with a CC1101 or an SX1280 (2.4 GHz); Squatch Mesh and MeshCore cannot use those two. Such a
+  pager boots and Wi-Fi works, but it never has a radio. Ask what their order or the box says.
+  Always hand off to the developer with: the version, which radio the order says, whether an SD card was
+  in, and whether a full power-off brought the radio up.
 - If they are on 1.1.17 or later and the radio still does not come up, hand off to the developer, with
   which radio it is if they know (a Wadamesh firmware file name saying sx1262 or lr1121 is the reliable
   answer). https://squatchmesh.com/install#radio
@@ -163,6 +166,18 @@ Keeping keys and contacts on a first install (from other firmware)
 - Ripple, Meshtastic and factory firmware keys can't be carried over; they start with a new identity.
 - If someone already flashed from other firmware without doing this and lost their keys or contacts, hand
   off to the developer (urgent) and tell them not to reformat the SD card or flash again.
+
+SD card says "not mounted" / "not found" (Tools > device info, Settings > Data)
+- The pager reads cards formatted FAT32 with an ordinary (MBR) partition table. A card that a Mac or PC
+  reads fine can still fail here: macOS Disk Utility often erases cards with the "GUID Partition Map"
+  scheme, and exFAT (the default for cards over 32 GB) is not read either. The likely fix on a Mac: Disk
+  Utility > View > Show All Devices, select the card itself (not the volume under it), Erase, Format
+  "MS-DOS (FAT)", Scheme "Master Boot Record". On Windows: format as FAT32 (cards over 32 GB need a tool
+  such as guiformat). This erases the card, so copy anything on it off first.
+- There is no format or mount command on the pager. It looks for the card at start-up and when the map,
+  a backup or the device info asks for it.
+- If a card formatted that way still isn't mounted after a restart, or a second card fails too, hand off
+  to the developer with the version, the card's size and make, and how it was formatted.
 
 Data
 - Contacts and channels are kept on the pager and, with an SD card, also backed up to it. Loss of
