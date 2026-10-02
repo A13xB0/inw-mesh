@@ -28,6 +28,19 @@ bool sdMount() {
   if (s_sd) return true;
   inw_spi.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, -1);   // no-op if the radio already did
   s_sd = SD.begin(PIN_SD_CS, inw_spi, 4000000, "/sd", 5, false);
+  if (!s_sd) {
+    // The radio and the screen are on these wires too. A card that is there but didn't
+    // mount (not FAT32, a partition table it can't read, a card that never answered) can
+    // be left holding the data line, and then nothing else on the bus is heard. Let go of
+    // it properly: unmount, deselect, and clock it a few bytes, which is what makes a card
+    // release the line.
+    SD.end();
+    pinMode(PIN_SD_CS, OUTPUT);
+    digitalWrite(PIN_SD_CS, HIGH);
+    inw_spi.beginTransaction(SPISettings(400000, MSBFIRST, SPI_MODE0));
+    for (int i = 0; i < 16; i++) inw_spi.transfer(0xFF);
+    inw_spi.endTransaction();
+  }
   return s_sd;
 }
 bool sdMounted() { return s_sd; }
