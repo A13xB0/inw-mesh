@@ -654,7 +654,8 @@ function showDevice() {
   // The way back to a standard theme, whatever is showing.
   const li = el("li", "tm-empty");
   li.append(el("span", "tm-dname", "Go back to a built-in theme:"));
-  LOOK_NAMES.forEach((n, i) => {
+  // The built-in ones by their number on the device; Halloween (4) is not a look to build on.
+  LOOK_NAMES.concat(["Halloween"]).forEach((n, i) => {
     const b = el("button", "", n); b.type = "button";
     b.addEventListener("click", () => act("Switching", async () => {
       const r = await ask("theme-use " + i, /\[theme-use\] (ok|failed)[^\n]*\n/, 6000, 0);
@@ -673,6 +674,7 @@ async function act(doing, job) {
   usb.busy = true;
   const btn = $("tm-send");
   btn.disabled = true;
+  $("tm-look").disabled = true;
   document.querySelectorAll("#tm-device-list button").forEach((b) => { b.disabled = true; });
   try {
     await connect();
@@ -700,6 +702,7 @@ async function act(doing, job) {
   } finally {
     usb.busy = false;
     btn.disabled = false;
+    $("tm-look").disabled = false;
     btn.textContent = usb.open ? "Send to my " + deviceWord() : "Send to my device";
     document.querySelectorAll("#tm-device-list button").forEach((b) => { b.disabled = false; });
   }
@@ -714,6 +717,17 @@ function sendTheme() {
     await list();
     status("ok", "“" + name + "” is on your " + deviceWord(),
            "It is showing now, and it is in Settings → Theme with the built-in ones. Change a colour and send again to replace it.");
+  });
+}
+
+// What the device holds, without sending anything: to take one off when it is full, or
+// just to see.
+function lookAtDevice() {
+  return act("Asking what's on it", async () => {
+    await list();
+    const n = (usb.themes || []).length;
+    status("ok", n ? "Your " + deviceWord() + " has " + n + " of your own" : "None of your own on your " + deviceWord() + " yet",
+           n ? "They are listed below: show one, change it, or remove it." : "Send the one you're making and it will be listed below.");
   });
 }
 
@@ -733,8 +747,10 @@ async function start() {
   if (!supported) {
     $("tm-unsupported").hidden = false;
     $("tm-send").disabled = true;
+    $("tm-look").disabled = true;
   } else {
     $("tm-send").addEventListener("click", sendTheme);
+    $("tm-look").addEventListener("click", lookAtDevice);
     $("tm-disconnect").addEventListener("click", async () => { await closePort("disconnected"); status("ok", "Disconnected", "Press send to connect again."); $("tm-send").textContent = "Send to my device"; });
     navigator.serial.addEventListener("disconnect", (ev) => {
       if (usb.port && ev.target === usb.port) { closePort("unplugged"); status("bad", "It was unplugged", "Plug it back in and press send to carry on."); $("tm-send").textContent = "Send to my device"; }
