@@ -97,6 +97,11 @@
     <p class="sub" style="font-size:14px;margin:0"><b>Both radios work.</b> LilyGo fits the T-Lora Pager with
     either an SX1262 or an LR1121 chip and they look identical from outside. Squatch Mesh carries both
     drivers and picks the right one when it starts, so there is nothing for you to check or choose.</p>
+    <p class="sub" style="font-size:14px;margin:10px 0 0"><b>Other radio versions won't work.</b> LilyGo also sells
+    this pager with a CC1101 or an SX1280 radio. Those can't join a MeshCore mesh, so Squatch Mesh can't use
+    them. If your order or the box says anything other than SX1262 or LR1121, don't install: it will start,
+    but with no radio. The installer can't see the radio until the firmware is running, so it can only tell
+    you this afterwards.</p>
   </div>
 
   <h2 id="keep-data">Before a first install: keep your keys and contacts</h2>
@@ -253,6 +258,6 @@
 
 <script src="/assets/app.js?v=8" defer></script>
 <script src="/assets/flashhelp.js?v=5" defer></script>
-<script type="module" src="/assets/flasher.js?v=21"></script>
+<script type="module" src="/assets/flasher.js?v=22"></script>
 </body>
 </html>

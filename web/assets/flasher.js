@@ -754,13 +754,31 @@ if (panel) {
       if (startBtn) startBtn.textContent = "DONE";
       return "ok";
     }
+    if (m && m[2] === "none" && BOARD === "t-lora-pager") {
+      // Neither radio the firmware drives answered. The browser can't see the radio before
+      // the firmware runs, so this is the first moment it can be said: most often it is a
+      // pager sold with another radio, which no install will change.
+      show("This pager's radio isn't one Squatch Mesh can use", "bad");
+      say("v" + m[1] + " is running, but neither an SX1262 nor an LR1121 radio answered" +
+          (before && before.radio === "none" ? " (the same as before this install)" : "") + ". " +
+          "LilyGo also sells this pager with a CC1101 or an SX1280 radio, and those can't join a MeshCore mesh: " +
+          "check what your order or the box says. If it is one of those, nothing is broken, but this firmware " +
+          "can't use it and installing again won't help. If yours is an SX1262 or LR1121, switch the pager " +
+          "fully off and on once; if the radio is still missing, tell the developer in the help box.");
+      logBox.open = true;
+      again.hidden = false;
+      report("radio", { kind: kind, version: version, before: before && before.radio, log: boot.split("\n").slice(-25).join("\n") });
+      return "radio";
+    }
     if (m) {
       show("It started, but the radio didn't", "bad");
       say("The pager is running v" + m[1] + " but its radio did not come up" +
           (m[2] && m[2] !== "none" ? " (" + m[2] + ")" : "") + ". I've sent the details to the developer.");
       logBox.open = true;
       again.hidden = false;
-      report("radio", { kind: kind, version: version, before: before && before.radio, log: boot.split("\n").slice(-25).join("\n") });
+      // One message to the developer, not two: asking the help desk hands it off with the
+      // same log, so the separate report is only for when the help box isn't on the page.
+      if (!window.__squatchHelp) report("radio", { kind: kind, version: version, before: before && before.radio, log: boot.split("\n").slice(-25).join("\n") });
       if (window.__squatchHelp) {
         window.__squatchHelp.ask("A " + FULL_NAME + " was just flashed from the browser (" + kind + ", v" + version +
           "). It booted but reports its radio did not come up. Its own USB output:\n" +
