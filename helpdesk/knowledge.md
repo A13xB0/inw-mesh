@@ -129,7 +129,7 @@ Two different radios - the most likely cause of "radio not responding"
   Wi-Fi (works without the radio), or the Update button on squatchmesh.com/install. No erase, nothing lost.
 - On 1.1.17 or later with "radio=none" / "radio init failed: radio not responding", there are two causes
   and they look the same, so do NOT say which it is and do NOT call it a hardware fault:
-  (1) The radio did not start this time. Seen for real on 2026-10-02: a pager on 1.2.7 reported no radio
+  (1) The radio did not start this time (from 1.2.8 the pager tries three times at start-up). Seen for real on 2026-10-02: a pager on 1.2.7 reported no radio
   on several starts in a row, then came up and worked. Reinstalling does not help. Ask them to: take the
   SD card out if one is in, switch fully off, wait ten seconds, switch on. If the radio comes up, ask them
   to put the card back and say whether it still does (the developer wants to know if the card matters).
@@ -174,8 +174,12 @@ SD card says "not mounted" / "not found" (Tools > device info, Settings > Data)
   Utility > View > Show All Devices, select the card itself (not the volume under it), Erase, Format
   "MS-DOS (FAT)", Scheme "Master Boot Record". On Windows: format as FAT32 (cards over 32 GB need a tool
   such as guiformat). This erases the card, so copy anything on it off first.
-- There is no format or mount command on the pager. It looks for the card at start-up and when the map,
-  a backup or the device info asks for it.
+- From pager 1.2.8 the pager tells the two apart: "none" / "not found" means no card answers; "can't be
+  read" means a card is in but isn't FAT32 with an ordinary partition table. For a card that can't be
+  read, Settings > Backups has "format this card for the pager": it erases the card and makes it FAT32
+  (about ten seconds for a 32 GB card), then backs up to it. It is only offered for a card that can't be
+  read; a working card is never formatted, and there is no way to format one from the pager.
+- Before 1.2.8 (and on the T-Deck) there is no format command on the device: format on a computer as above.
 - If a card formatted that way still isn't mounted after a restart, or a second card fails too, hand off
   to the developer with the version, the card's size and make, and how it was formatted.
 
@@ -216,7 +220,15 @@ Your own themes (pager 1.2.7 and later, T-Deck 1.2.4-beta4 and later)
   can be fixed by choosing another theme in Settings > Theme, or by sending it again with the
   same name and better colours.
 
-New in 1.2.7 (released 2026-10-01, the current pager release; 1.2.6 was only on the beta channel for an hour)
+New in 1.2.8 (released 2026-10-02, the current pager release)
+- Sounds no longer skip. The start-up tune had a gap in it just as the lock screen appeared, in every theme.
+- SD cards: the pager says when a card is in but can't be read, and can format it (see the SD card notes).
+  It also no longer tries to mount a card that isn't there or can't be read, which could crash it.
+- The "Update to X?" question only appears on the home screen, and a version you say no to isn't offered
+  again (Settings > System > check for updates still offers it).
+- The radio is tried three times at start-up, and a problem report says why if it didn't answer.
+
+New in 1.2.7 (released 2026-10-01; 1.2.6 was only on the beta channel for an hour)
 - The Halloween theme (see "Halloween theme" above).
 - Themes of your own from squatchmesh.com/theme-maker (see "Your own themes" above).
 
@@ -271,7 +283,12 @@ T-Deck keyboard: numbers and symbols
   backlight; Squatch Mesh sets the backlight itself (Settings > Display).
 - If sym + a key gives nothing at all, ask which keys they tried and hand off to the developer.
 
-T-Deck 1.2.4-beta5 (released 2026-10-01, the current T-Deck beta)
+T-Deck 1.2.4-beta6 (released 2026-10-02, the current T-Deck beta)
+- Sounds no longer skip when the device is busy (the start-up tune had a gap in it).
+- The "Update to X?" question only appears on the home screen, and a version you say no to isn't offered
+  again. (With "install updates by itself" on, as it is by default, the T-Deck doesn't ask at all.)
+
+T-Deck 1.2.4-beta5 (released 2026-10-01)
 - Halloween: the costume and place change every time the screen comes on, and the theme has its own
   screen changes (see "Halloween theme" above).
 
