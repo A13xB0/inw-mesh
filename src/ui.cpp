@@ -962,10 +962,9 @@ void ConfirmView::draw(Canvas& g) {
 }
 
 void ConfirmView::press() {
-  auto fn = _yes;
-  const bool yes = _sel;
+  auto fn = _sel ? _yes : _no;       // copied: pop() below deletes this view
   nav.pop();
-  if (yes && fn) fn();
+  if (fn) fn();
 }
 
 // ---- TextPageView ----------------------------------------------------------------------------

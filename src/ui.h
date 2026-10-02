@@ -204,15 +204,15 @@ private:
 // ---- confirm ------------------------------------------------------------------------
 class ConfirmView : public View {
 public:
-  ConfirmView(const String& q, const String& detail, std::function<void()> yes)
-    : _q(q), _detail(detail), _yes(yes) {}
+  ConfirmView(const String& q, const String& detail, std::function<void()> yes, std::function<void()> no = nullptr)
+    : _q(q), _detail(detail), _yes(yes), _no(no) {}
   void draw(Canvas& g) override;
   void rotate(int d) override { _sel = !_sel; dirty = true; }
   void press() override;
   void key(char c) override { if (c == 'y') { _sel = true; press(); } else if (c == 'n') { _sel = false; press(); } }
 private:
   String _q, _detail;
-  std::function<void()> _yes;
+  std::function<void()> _yes, _no;  // _no: told when the answer was no (most askers don't need to know)
   bool _sel = false;               // cursor starts on "no"
 };
 
@@ -238,8 +238,8 @@ public:
 };
 
 // Convenience
-inline void confirm(const String& q, const String& detail, std::function<void()> yes) {
-  nav.push(new ConfirmView(q, detail, yes));
+inline void confirm(const String& q, const String& detail, std::function<void()> yes, std::function<void()> no = nullptr) {
+  nav.push(new ConfirmView(q, detail, yes, no));
 }
 inline void prompt(const String& title, const String& hint, const String& initial, size_t maxLen,
                    std::function<void(const String&)> done, bool secret = false) {
