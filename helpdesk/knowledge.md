@@ -293,7 +293,24 @@ T-Deck keyboard: numbers and symbols
   backlight; Squatch Mesh sets the backlight itself (Settings > Display).
 - If sym + a key gives nothing at all, ask which keys they tried and hand off to the developer.
 
-T-Deck 1.2.4-beta6 (released 2026-10-02, the current T-Deck beta)
+Signal bars (pager 1.2.9 beta / T-Deck 1.2.4-beta7, both 2026-10-02)
+- Four bars in the top bar, next to the battery, and a larger set on the lock screen. They show how well
+  the last packet was heard (its SNR): 4 bars at 5 dB or better, 3 from 0 dB, 2 from -7 dB, 1 below
+  that. Unlit means nothing was heard lately. They say how well this device hears its nearest
+  neighbour, not whether a message will reach someone far away.
+- Settings > Display: "signal bars" off / small / large (top bar), "lock screen signal" off / small /
+  large, "lock screen signal side" left / right, and "signal check every" never / 1 / 2 / 5 / 10 / 15 /
+  30 / 60 min (5 by default).
+- The signal check: when nothing has been heard for that long and the screen is on, the device asks the
+  repeaters in direct range to answer. It is zero hop, so it is never repeated across the mesh. It
+  doesn't run with the screen off or in power saver. One bar sweeps while it waits; the bars fill when
+  an answer comes.
+- Pager 1.2.9 is a beta: only pagers set to take beta updates get it. The pager release is still 1.2.8.
+
+T-Deck 1.2.4-beta7 (released 2026-10-02, the current T-Deck beta)
+- Signal bars (see above). Nothing else changed from beta6.
+
+T-Deck 1.2.4-beta6 (released 2026-10-02)
 - Sounds no longer skip when the device is busy (the start-up tune had a gap in it).
 - Typing: keys pressed while one screen changes to the next are kept (they used to be lost), a save to
   storage no longer starts while a message is being typed, and the freeze once a minute is gone (with
