@@ -795,6 +795,10 @@ static void usbCommands() {
       Serial.printf("[fs] %d files, %u bytes\n", files, (unsigned)bytes);
       continue;
     }
+    if (!strncmp(line, "sd ", 3)) {         // the card: info | ls | keep | gpt | back | format (dataio.cpp)
+      Serial.printf("[sd] %s: %s\n", line + 3, sdTest(line + 3));
+      continue;
+    }
     if (!strcmp(line, "backup")) {          // same job as Settings -> back up to sd now
       Serial.printf("[backup] %s\n", sdBackupNow(true));
       continue;
