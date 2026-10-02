@@ -61,7 +61,8 @@ Sound, battery and screen (1.2.1)
   charging and 100% only once the charger reports full. If the figure seems off after updating, charging
   to full once sets it straight.
 - Every theme has its own animation when you move between screens, unlock and lock. They're meant to be
-  there; there's no setting to turn them off.
+  there. From pager 1.2.8 / T-Deck 1.2.4-beta6, Settings > Display > "animate screen changes" turns off
+  the ones between screens for anyone who finds them slow; earlier versions have no such setting.
 
 First start (1.2.2)
 - After a fresh install and storage setup, three questions: radio region (MeshCore presets, or keep the
@@ -179,7 +180,8 @@ SD card says "not mounted" / "not found" (Tools > device info, Settings > Data)
   read, Settings > Backups has "format this card for the pager": it erases the card and makes it FAT32
   (about ten seconds for a 32 GB card), then backs up to it. It is only offered for a card that can't be
   read; a working card is never formatted, and there is no way to format one from the pager.
-- Before 1.2.8 (and on the T-Deck) there is no format command on the device: format on a computer as above.
+- The T-Deck has the same from 1.2.4-beta6. Before 1.2.8 / beta6 there is no format command on the
+  device: format on a computer as above.
 - If a card formatted that way still isn't mounted after a restart, or a second card fails too, hand off
   to the developer with the version, the card's size and make, and how it was formatted.
 
@@ -211,7 +213,9 @@ Your own themes (pager 1.2.7 and later, T-Deck 1.2.4-beta4 and later)
 - Sending needs Chrome or Edge on a computer, the same as the installer. Phones, Safari and Firefox can't
   send over USB; the page still works there for designing, and gives a link to open on a computer.
 - Up to four of your own themes on a device. Sending one with a name it already has replaces that one.
-  When it has four, take one off first: the page lists what's on the device with "remove" beside each.
+  When it has four, take one off first: on the page press "See what's on it" (it lists what's on the
+  device with "remove" beside each, without sending anything), or from pager 1.2.8 / T-Deck 1.2.4-beta6
+  on the device itself, at the bottom of Settings > Theme.
 - Nothing leaves their computer: the theme goes over the USB cable to the device and nowhere else. It is
   not sent to the website, not shared on the mesh, and other people never see the name.
 - Themes stay through restarts and firmware updates. A full erase (installer "start fresh") removes them.
@@ -227,6 +231,12 @@ New in 1.2.8 (released 2026-10-02, the current pager release)
 - The "Update to X?" question only appears on the home screen, and a version you say no to isn't offered
   again (Settings > System > check for updates still offers it).
 - The radio is tried three times at start-up, and a problem report says why if it didn't answer.
+- No more freeze once a minute. With Wi-Fi on and a long contact list, everything stood still for over a
+  second every minute (it showed as typing or scrolling that hung, then caught up).
+- Keys pressed while one screen changes to the next are no longer lost.
+- Settings > Display > "animate screen changes": off makes screens change at once instead of with the
+  theme's half-second animation (locking, unlocking, waking and sleeping keep theirs). On by default.
+- Settings > Theme lists your own themes at the bottom with "remove" beside each.
 
 New in 1.2.7 (released 2026-10-01; 1.2.6 was only on the beta channel for an hour)
 - The Halloween theme (see "Halloween theme" above).
@@ -285,6 +295,14 @@ T-Deck keyboard: numbers and symbols
 
 T-Deck 1.2.4-beta6 (released 2026-10-02, the current T-Deck beta)
 - Sounds no longer skip when the device is busy (the start-up tune had a gap in it).
+- Typing: keys pressed while one screen changes to the next are kept (they used to be lost), a save to
+  storage no longer starts while a message is being typed, and the freeze once a minute is gone (with
+  Wi-Fi on and many contacts, everything stood still for over a second each minute).
+- Settings > Display > "animate screen changes": off makes screens change at once. On by default.
+- The typing screen's hint said "alt + key for 123". It is the SYM key; the hint now says so.
+- SD cards: the T-Deck says when a card is in but can't be read, can format it (Settings > Backups), and
+  no longer tries to mount a card that isn't there or can't be read, which could crash it.
+- Settings > Theme lists your own themes at the bottom with "remove" beside each.
 - The "Update to X?" question only appears on the home screen, and a version you say no to isn't offered
   again. (With "install updates by itself" on, as it is by default, the T-Deck doesn't ask at all.)
 
