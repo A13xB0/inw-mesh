@@ -263,6 +263,14 @@ T-Deck beta (1.2.2-beta6 and later)
 - It has a Bluetooth console for the developer's tools (admin password only); phones won't list it in
   Bluetooth settings, which is normal.
 
+T-Deck keyboard: numbers and symbols
+- Numbers and symbols are typed with the SYM key (bottom row, beside the space bar), not ALT: press sym,
+  then the key with the number or symbol printed on it (or hold sym while pressing it). The keyboard is its
+  own small computer inside the T-Deck and works this way under every firmware.
+- ALT does not type anything in Squatch Mesh. On the keyboard's own chip, alt+B switches the key
+  backlight; Squatch Mesh sets the backlight itself (Settings > Display).
+- If sym + a key gives nothing at all, ask which keys they tried and hand off to the developer.
+
 T-Deck 1.2.4-beta5 (released 2026-10-01, the current T-Deck beta)
 - Halloween: the costume and place change every time the screen comes on, and the theme has its own
   screen changes (see "Halloween theme" above).
