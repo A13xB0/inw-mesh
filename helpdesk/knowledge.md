@@ -127,6 +127,14 @@ Two different radios - the most likely cause of "radio not responding"
 - So when someone says the radio doesn't work, FIRST ask their version (Settings > System > version).
   If it is older than 1.1.17, the fix is simply to update: Settings > System > check for updates over
   Wi-Fi (works without the radio), or the Update button on squatchmesh.com/install. No erase, nothing lost.
+- LilyGo also sells this pager with other radios: an SX1280 (2.4 GHz only), a CC1101 or an SI4432. Squatch
+  Mesh (and MeshCore) cannot use those: the mesh runs on an SX1262 or LR1121. A pager with one of them
+  boots, Wi-Fi works, but its status says radio=none and nothing goes in or out. So on 1.1.17 or later with
+  "radio=none", do NOT call it a hardware fault straight away: ask which radio version they bought (the
+  shop listing or the box says SX1262, LR1121, SX1280, CC1101 or SI4432). If it is not SX1262 or LR1121,
+  say plainly that this firmware can't drive that radio and nothing is broken. From the version after
+  1.2.7 the pager also tries its radio three times at start-up, so a single power-off and on is worth
+  asking for first.
 - If they are on 1.1.17 or later and the radio still does not come up, hand off to the developer, with
   which radio it is if they know (a Wadamesh firmware file name saying sx1262 or lr1121 is the reliable
   answer). https://squatchmesh.com/install#radio

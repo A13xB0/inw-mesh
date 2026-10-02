@@ -26,10 +26,28 @@ static PhysicalLayer* s_phy = nullptr;
 InwRTCClock rtc_clock;
 InwSensors sensors;
 
+char radio_why[40] = "";
+static bool radio_probe();
+
+// Up to three tries, a moment apart. A radio that other firmware left asleep or part
+// way through something can miss the first reset; a pager that really has neither chip
+// (LilyGo also sells it with an SX1280, a CC1101 or an SI4432) fails all three, and
+// radio_why says what the drivers answered.
 bool radio_init() {
   if (radio_chip[0] != 'n') return true;   // built once; never placement-new over a live driver
   rtc_clock.begin();
   inw_spi.begin(P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI, P_LORA_NSS);
+  for (int attempt = 1; attempt <= 3; attempt++) {
+    if (radio_probe()) {
+      if (attempt > 1) Serial.printf("[radio] %s answered on try %d\n", radio_chip, attempt);
+      return true;
+    }
+    delay(300);
+  }
+  return false;
+}
+
+static bool radio_probe() {
 
   // SX1262 first, unchanged: std_init applies the LORA_* and SX126X_* build
   // flags (3.0V TCXO on DIO3, DIO2 as the RF switch, per Meshtastic's
@@ -56,6 +74,7 @@ bool radio_init() {
                                    RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE,
                                    LORA_TX_POWER, 8, 3.0f);   // 8-arg begin applies the 3.0V TCXO itself
   if (state != RADIOLIB_ERR_NONE) {
+    snprintf(radio_why, sizeof(radio_why), "no SX1262; LR1121 said %d", state);
     Serial.printf("[radio] neither SX1262 nor LR1121 answered (lr1121 said %d)\n", state);
     return false;
   }

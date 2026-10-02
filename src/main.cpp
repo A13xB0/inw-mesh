@@ -675,6 +675,8 @@ static void usbCommands() {
     // Every build answers the web installer's two questions: "status" (what is on
     // it) and "save" (put everything on flash before it is reset).
     if (!strcmp(line, "status")) {
+      // Why the radio is down goes on its own line first, so the installer's report has it.
+      if (!s_radioOk && radio_chip[0] == 'n') Serial.printf("[radio] not up: %s\n", s_radioFault);
       Serial.printf("[status] fw=%s radio=%s radio_ok=%d contacts=%d\n",
                     FW_VERSION, radio_chip, s_radioOk ? 1 : 0,
                     g_node ? g_node->getNumContacts() : -1);
@@ -1584,6 +1586,7 @@ void setup() {
 
   board.battReader = [] { return battery.millivolts(); };
   s_radioOk = nodeBegin();
+  if (!s_radioOk && radio_why[0]) snprintf(s_radioFault, sizeof(s_radioFault), "no radio answered (%s)", radio_why);
   char rinfo[48] = "";
   // radio_chip says which of the pager's two radios answered.
   if (s_radioOk) snprintf(rinfo, sizeof(rinfo), "%s  %.3f MHz sf%u", radio_chip, g_node->prefs().freq, g_node->prefs().sf);

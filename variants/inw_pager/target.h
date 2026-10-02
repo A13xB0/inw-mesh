@@ -49,6 +49,7 @@ public:
 extern InwPagerBoard board;
 extern RadioLibWrapper& radio_driver;   // the driver for whichever chip this board has (built by radio_init)
 extern const char* radio_chip;          // "SX1262", "LR1121", or "none"
+extern char radio_why[40];              // when it is "none": what the two drivers said, for reports
 extern InwRTCClock rtc_clock;
 extern InwSensors sensors;
 extern SPIClass inw_spi;   // the one shared SPI bus: radio, SD card (and the panel)
