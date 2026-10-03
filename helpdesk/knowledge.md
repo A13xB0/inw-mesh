@@ -305,9 +305,30 @@ Signal bars (pager 1.2.9 beta / T-Deck 1.2.4-beta7, both 2026-10-02)
   repeaters in direct range to answer. It is zero hop, so it is never repeated across the mesh. It
   doesn't run with the screen off or in power saver. One bar sweeps while it waits; the bars fill when
   an answer comes.
-- Pager 1.2.9 is a beta: only pagers set to take beta updates get it. The pager release is still 1.2.8.
+- From pager 1.2.10 beta / T-Deck 1.2.4-beta8 the bars show the best packet of the last two minutes, so
+  they no longer jump with every packet.
+- Pager 1.2.9 and 1.2.10 are betas: only pagers set to take beta updates get them. The pager release is
+  still 1.2.8.
 
-T-Deck 1.2.4-beta7 (released 2026-10-02, the current T-Deck beta)
+Pager 1.2.10 beta and T-Deck 1.2.4-beta8 (both 2026-10-03; beta8 is the current T-Deck beta)
+- Map: a restart while zooming or moving around the map is fixed. Finishing one map-tile download closed
+  the file the previous tile was being saved to on the SD card (a fault in the HTTPS library, worked
+  around). Anyone who reports the device restarting on the map should update to this version first.
+- Screen: no more rainbow static when a message lights the screen (the light came on before the panel had
+  woken), and no more static now and then at power-on.
+- Direct messages are tried up to 15 times where it was 3. The third and later tries flood, and from the
+  fourth the wait between tries grows, so they spread over a few minutes. Settings: "flood on last
+  retry" is now called "flood from the third try".
+- A retried copy of a message already received is shown once. The bubble says x2, x3 for the copies that
+  arrived, and there is no second notification. The same goes for a message the sender sent again by
+  hand within three minutes with nothing said in between. A device on older firmware, or another app,
+  still shows every copy it receives.
+- T-Deck: a finger resting on the screen counts as using it, so the screen doesn't dim under it.
+- The log records each time the screen dims and how long the device had been idle. If someone says the
+  screen dims while they are using it, ask them to send the log right after it happens (Tools > send log
+  to the developer) and hand off to the developer.
+
+T-Deck 1.2.4-beta7 (released 2026-10-02)
 - Signal bars (see above). Nothing else changed from beta6.
 
 T-Deck 1.2.4-beta6 (released 2026-10-02)
