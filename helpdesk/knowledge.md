@@ -323,6 +323,15 @@ Pager 1.2.10 beta and T-Deck 1.2.4-beta8 (both 2026-10-03; beta8 is the current 
   arrived, and there is no second notification. The same goes for a message the sender sent again by
   hand within three minutes with nothing said in between. A device on older firmware, or another app,
   still shows every copy it receives.
+- T-Deck: tapping the yellow "N new" badge in the top bar goes to the new messages. With unread messages
+  in one conversation it opens that conversation; with several it opens the Messages list. On the lock
+  screen it opens after the swipe up.
+- Setting the clock by hand (Settings > Clock & time): with a 12-hour clock the time is typed with am or
+  pm, for example "2026-10-03 9:15 pm". Before, the only way to enter an afternoon time was 24-hour
+  ("21:15"), which still works.
+- Settings > region preset: the tick now follows the preset that was picked. USA and Canada use the same
+  radio settings, and the tick used to stay on Canada after picking USA. The radio was set correctly
+  either way; only the tick was wrong.
 - T-Deck: a finger resting on the screen counts as using it, so the screen doesn't dim under it.
 - The log records each time the screen dims and how long the device had been idle. If someone says the
   screen dims while they are using it, ask them to send the log right after it happens (Tools > send log
