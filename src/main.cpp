@@ -366,6 +366,9 @@ static void panelWake() {
   s_panelAt = millis();
   s_panelOff = false;
   nav.invalidate();
+#if INW_DEV
+  Serial.printf("[panel] awake (backlight %u while waking)\n", backlight.level());
+#endif
 }
 static void panelSleep() {
   if (s_panelOff || millis() - s_panelAt < 120) return;
@@ -1009,6 +1012,16 @@ static void usbCommands() {
       for (uint8_t i = 0; i < wifi::savedCount(); i++)
         Serial.printf("[wifi] saved %u: %s | %s\n", i, wifi::savedSsid(i), wifi::savedState(i));
       Serial.printf("[wifi] scan %s, %d found\n", wifi::scanDone() ? "done" : "not done", wifi::scanCount());
+      continue;
+    }
+    // "notify": a made-up message alert, as if one had just come in (wakes the screen,
+    // banner, sound): for checking what the screen does when a message wakes it.
+    if (!strcmp(line, "notify")) {
+      const uint32_t t = millis();
+      const bool wasOff = s_panelOff;
+      alert("Test", "a made-up notification", AlertKind::Msg);
+      Serial.printf("[notify] sent; panel was %s\n", wasOff ? "asleep" : "awake");
+      (void)t;
       continue;
     }
     // "io9 N": the IO9 mode for now (not saved), then an alert, for checking the pin.
@@ -2026,6 +2039,16 @@ void loop() {
   if (!dimmer.asleep() && nav.top() && nav.top()->isLock() && dimmer.idleFor() > 10000UL) dimmer.sleepNow();
   gpsSchedule();
 
+  // Each dim goes in the log with how long nothing had been touched and where, so a
+  // "dims while I'm using it" report shows what it took for idleness.
+  {
+    static bool wasDim = false;
+    if (dimmer.dimmed() && !wasDim)
+      logs.add(LOG_INFO, "screen dimmed: %lus idle on '%s' (dim after %us%s)", (unsigned long)(dimmer.idleFor() / 1000),
+               g_screenTitle, power::saver() ? (unsigned)min<uint16_t>(ui_settings.dimSecs, 10) : (unsigned)ui_settings.dimSecs,
+               power::saver() ? ", battery saver" : "");
+    wasDim = dimmer.dimmed();
+  }
   // Keyboard light follows the screen (or flashes for a message).
   {
     static uint8_t prev = 1;
