@@ -326,6 +326,21 @@ Pager 1.2.10 beta and T-Deck 1.2.4-beta8 (both 2026-10-03; beta8 is the current 
 - T-Deck: tapping the yellow "N new" badge in the top bar goes to the new messages. With unread messages
   in one conversation it opens that conversation; with several it opens the Messages list. On the lock
   screen it opens after the swipe up.
+- Multi-boot launchers (Launcher by bmorcelli, and similar): from this version an update over Wi-Fi never
+  replaces another firmware by itself. If the slot an update would be written to holds a firmware that
+  isn't Squatch Mesh, the device shows "Update available: use your launcher" once and leaves it alone.
+  Settings > System > check for updates still works there, and says plainly that it will replace the other
+  firmware. To update and keep the other firmware: download the new firmware.bin (the T-Deck one is on the
+  GitHub release for that version), put it on the SD card and install it from the launcher over the
+  existing Squatch Mesh entry. Versions before this one (pager 1.2.9, T-Deck 1.2.4-beta7 and older) do
+  overwrite the other slot when they update; turning off Settings > System > "install updates by itself"
+  stops that.
+- Switching to another firmware from a launcher and back: the other firmware can erase the storage all of
+  them share. Squatch Mesh then puts back the name, keys, channels and radio settings from its safety
+  copy, and contacts and messages from the SD card's daily backup if there is a card (contacts otherwise
+  come back as nodes are heard). Before this version the safety copy was only refreshed at start-up, so
+  channels added since the last start were lost; now it is refreshed whenever channels change. Advice:
+  keep an SD card in, and use Settings > Backups > "back up to sd now" before switching firmware.
 - The "N new" count (top bar, lock screen, home) follows each chat's notification setting. A muted chat
   adds nothing to it. A chat set to "@mentions only" adds only messages that mention you, and so does
   every channel when Settings > Notifications has "only when @mentioned" on or channel messages off.
