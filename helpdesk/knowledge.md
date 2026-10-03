@@ -326,6 +326,10 @@ Pager 1.2.10 beta and T-Deck 1.2.4-beta8 (both 2026-10-03; beta8 is the current 
 - T-Deck: tapping the yellow "N new" badge in the top bar goes to the new messages. With unread messages
   in one conversation it opens that conversation; with several it opens the Messages list. On the lock
   screen it opens after the swipe up.
+- The "N new" count (top bar, lock screen, home) follows each chat's notification setting. A muted chat
+  adds nothing to it. A chat set to "@mentions only" adds only messages that mention you, and so does
+  every channel when Settings > Notifications has "only when @mentioned" on or channel messages off.
+  The Messages list still shows each chat's own unread count. Before, every unread message counted.
 - Setting the clock by hand (Settings > Clock & time): with a 12-hour clock the time is typed with am or
   pm, for example "2026-10-03 9:15 pm". Before, the only way to enter an afternoon time was 24-hour
   ("21:15"), which still works.
