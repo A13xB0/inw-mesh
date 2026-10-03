@@ -14,6 +14,9 @@
 #include "notify.h"
 #include "statusbar.h"
 #include "ota.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #include "bugreport.h"
 #include <SD.h>
 #include <time.h>
@@ -1012,6 +1015,26 @@ static void usbCommands() {
       for (uint8_t i = 0; i < wifi::savedCount(); i++)
         Serial.printf("[wifi] saved %u: %s | %s\n", i, wifi::savedSsid(i), wifi::savedState(i));
       Serial.printf("[wifi] scan %s, %d found\n", wifi::scanDone() ? "done" : "not done", wifi::scanCount());
+      continue;
+    }
+    // "fd0": is file descriptor 0 still the console's, and which descriptor does a newly
+    // opened file get? "otacheck": one HTTPS request (an update check), then the same.
+    // For the HTTPS client's stray close(0) (tls_client.h).
+    if (!strcmp(line, "fd0") || !strcmp(line, "otacheck")) {
+      if (line[0] == 'o') {
+        const ota::Info info = ota::check();
+        Serial.printf("[otacheck] %s %s\n", info.ok ? "ok" : "failed", info.ok ? info.version : info.error);
+      }
+      errno = 0;
+      const int fl = fcntl(0, F_GETFL);
+      const int e = errno;
+      int fd = -1;
+      if (sdMount()) {
+        fd = open("/sd/fd0test.tmp", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd >= 0) { close(fd); unlink("/sd/fd0test.tmp"); }
+      }
+      Serial.printf("[fd0] descriptor 0 is %s (fcntl %d, errno %d); a new file on the card gets descriptor %d\n",
+                    fl >= 0 || e != EBADF ? "open" : "CLOSED", fl, e, fd);
       continue;
     }
     // "notify": a made-up message alert, as if one had just come in (wakes the screen,
