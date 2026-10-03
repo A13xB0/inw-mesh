@@ -307,10 +307,21 @@ Signal bars (pager 1.2.9 beta / T-Deck 1.2.4-beta7, both 2026-10-02)
   an answer comes.
 - From pager 1.2.10 beta / T-Deck 1.2.4-beta8 the bars show the best packet of the last two minutes, so
   they no longer jump with every packet.
-- Pager 1.2.9 and 1.2.10 are betas: only pagers set to take beta updates get them. The pager release is
+- Pager 1.2.9, 1.2.10 and 1.2.11 are betas: only pagers set to take beta updates get them. The pager release is
   still 1.2.8.
 
-Pager 1.2.10 beta and T-Deck 1.2.4-beta8 (both 2026-10-03; beta8 is the current T-Deck beta)
+Pager 1.2.11 beta and T-Deck 1.2.4-beta9 (both 2026-10-03, later the same day; beta9 is the current T-Deck beta)
+- Settings > Backups > "auto backup every": hour, 3 hours, 6 hours, 12 hours or day. It was a line of text
+  saying "once a day" that could not be changed. Day is still the default. Backups run with the screen
+  off, to /inw on the SD card.
+- T-Deck home screen: the time is shown once, in the large clock. The top bar shows the device's name
+  there (other screens keep the time in the top bar).
+- Checking for updates: if the device can't connect to the update site it tries once more by itself, and
+  then says "couldn't connect to the update site" (it used to say "update site said -1"). That is the
+  device's connection at that moment, not the site: trying again a little later is the fix.
+- Pager 1.2.11 is a beta: only pagers set to take beta updates get it. The pager release is still 1.2.8.
+
+Pager 1.2.10 beta and T-Deck 1.2.4-beta8 (both 2026-10-03)
 - Map: a restart while zooming or moving around the map is fixed. Finishing one map-tile download closed
   the file the previous tile was being saved to on the SD card (a fault in the HTTPS library, worked
   around). Anyone who reports the device restarting on the map should update to this version first.
