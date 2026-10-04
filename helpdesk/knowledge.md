@@ -310,7 +310,25 @@ Signal bars (pager 1.2.9 beta / T-Deck 1.2.4-beta7, both 2026-10-02)
 - Pager 1.2.9, 1.2.10 and 1.2.11 are betas: only pagers set to take beta updates get them. The pager release is
   still 1.2.8.
 
-Pager 1.2.11 beta and T-Deck 1.2.4-beta9 (both 2026-10-03, later the same day; beta9 is the current T-Deck beta)
+T-Deck 1.2.4-beta10 (2026-10-04) - only for T-Decks with beta updates switched on
+- The T-Deck now has two update channels, like the pager. Everyone gets 1.2.4-beta9, from the installer at
+  squatchmesh.com/t-deck and over Wi-Fi. A T-Deck with Settings > System > "beta updates (every build)"
+  switched on gets the newest build, which is 1.2.4-beta10. To try it: switch that on, then
+  Settings > System > check for updates (or leave it charging on Wi-Fi). To stop getting test builds,
+  switch it off; the device stays on what it has until the regular build catches up.
+- Quick settings: pull down from the top of the screen, or tap the right side of the top bar. A panel with
+  a brightness slider and a volume slider that follow the finger, and tiles for Wi-Fi, Bluetooth, GPS,
+  Sound, battery Saver and all Settings. A dot on a radio's tile means it is connected (a network, the
+  phone, a GPS fix); a ring means it is on and still looking. Swipe up, or the back arrow, closes it.
+  The trackball works too: roll to move, click to switch a tile or take hold of a slider.
+- Night brightness: Settings > Display > "night brightness" (off, or a level), "night from" and "night
+  until" (9 pm and 7 am unless changed). Between those hours the screen uses the night level and goes
+  back by itself in the morning. It needs the clock to be set. The quick settings' brightness slider
+  changes whichever level is in use at the time.
+- The Display setting "signal check every" is now called "signal check if quiet for": it was never a
+  timer, it only runs when nothing has been heard for that long.
+
+Pager 1.2.11 beta and T-Deck 1.2.4-beta9 (both 2026-10-03, later the same day; beta9 is the T-Deck build everyone gets)
 - Settings > Backups > "auto backup every": hour, 3 hours, 6 hours, 12 hours or day. It was a line of text
   saying "once a day" that could not be changed. Day is still the default. Backups run with the screen
   off, to /inw on the SD card.
