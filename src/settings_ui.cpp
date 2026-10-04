@@ -713,7 +713,7 @@ static void displayMenu() {
             [](int d) { app::setLockSignalLeft(d < 0); });
   // With nothing heard for this long and the screen on, nearby repeaters are asked to
   // answer (zero hop: the question is never repeated across the mesh).
-  m->adjust("signal check every", []() -> String {
+  m->adjust("signal check if quiet for", []() -> String {
     return app::signalCheckMins() ? String(app::signalCheckMins()) + " min" : String("never");
   }, [](int d) {
     static const uint8_t steps[] = {0, 1, 2, 5, 10, 15, 30, 60};
