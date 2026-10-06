@@ -76,6 +76,10 @@ changes too: slime, bats, creaking doors, a jack-o'-lantern and lightning.
   12/24 h and miles/km.
 - **Wi-Fi:** saved networks, says why it won't join, internet time, map tiles, and it
   backs off when none of your networks is around.
+- **Home link:** on a saved network with a companion set for it (any companion that
+  takes raw packets: MeshCore, an openHop Repeater's companion listener, others), the pager sends and hears
+  through that companion over Wi-Fi and lets its own radio sleep. Off that network
+  it is back on its own radio. Settings > Wi-Fi > home link.
 - **Top header:** plug-in I2C sensors (BME280, BMP280, SHT3x, SHT4x, AHT20, BH1750)
   shown under Tools and sent as telemetry, and IO9 as a message LED or buzzer.
 - **NFC:** read and write tags, share your contact or a channel invite by tapping
@@ -186,6 +190,7 @@ firmware is GPL-3.0. If you'd rather have a build with no ST code in it, use the
 | `src/regions.*`, `regional.*` | region scopes; region presets and time zones |
 | `src/motion.*` | the motion sensor: raise to wake, stay on while held, man-down |
 | `src/netwifi.*`, `ota.*`, `bugreport.*` | Wi-Fi, NTP and tile downloads; updates; problem reports |
+| `src/homelink.*`, `multiradio.*` | the home link: a companion over TCP, and which radio the node uses ([docs/home-link.md](docs/home-link.md)) |
 | `variants/inw_pager/` | board definition for MeshCore |
 | `web/`, `helpdesk/` | squatchmesh.com and its help desk |
 | `docs/hardware.md` | pinout and hardware notes |

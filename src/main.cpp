@@ -46,6 +46,8 @@
 #include "dataio.h"
 #include "fieldtools.h"
 #include "netwifi.h"
+#include "homelink.h"
+#include "multiradio.h"
 #include "fx.h"
 #include "regional.h"
 #include "extport.h"
@@ -829,6 +831,29 @@ static void usbCommands() {
     // The browser installer sends this before it resets the pager, so nothing
     // learned since the last lazy write is lost to the flash. Cheap enough to
     // run on demand: contacts are only written if there is something pending.
+    // Home link: "link" shows it, "link on" / "link off",
+    // "link host <host[:port]>" sets the companion for the current network,
+    // "link host" alone clears it.
+    if (!strncmp(line, "link", 4) && (line[4] == 0 || line[4] == ' ')) {
+      const char* a = line + 4;
+      while (*a == ' ') a++;
+      if (!strcmp(a, "on")) homelink::setEnabled(true);
+      else if (!strcmp(a, "off")) homelink::setEnabled(false);
+      else if (!strncmp(a, "host", 4)) {
+        if (!wifi::connected()) { Serial.println("[link] join the network first"); continue; }
+        homelink::setHost(wifi::ssid(), a[4] == ' ' ? a + 5 : "");
+      }
+      const auto& st = homelink::stats();
+      const auto& n = g_radio.counters();
+      Serial.printf("[link] on=%d %s host=%s\n", homelink::enabled(), homelink::statusText(),
+                    homelink::hostText(wifi::ssid()).c_str());
+      Serial.printf("[link] via_link=%d companion tx ok=%lu err=%lu rx=%lu cut=%lu connects=%lu drops=%lu rtt=%lums\n",
+                    g_radio.viaLink(), (unsigned long)st.txOk, (unsigned long)st.txErr, (unsigned long)st.rx,
+                    (unsigned long)st.rxTruncated, (unsigned long)st.connects, (unsigned long)st.drops, (unsigned long)st.rttMs);
+      Serial.printf("[link] radio link_tx=%lu refused=%lu too_big=%lu link_rx=%lu\n", (unsigned long)n.linkTx,
+                    (unsigned long)n.linkRefused, (unsigned long)n.tooBig, (unsigned long)n.linkRx);
+      continue;
+    }
     if (!strcmp(line, "save")) {
       if (g_node) {
         if (g_node->hasPendingWork()) g_node->saveContactsNow();
@@ -1794,6 +1819,7 @@ void setup() {
   motion::begin();                               // raise to wake, face down, man-down
   bootStep("motion", strcmp(motion::state(), "not responding"), motion::state());
   wifi::begin();
+  homelink::begin();
   s_bootStep = BOOT_STEPS - 1;
   bootStep("ready", true);
   bootAnimStop();
@@ -2000,7 +2026,13 @@ void loop() {
   gpsTick();
   lap(1);
   wifi::tick();
+  homelink::tick();
   { static bool w = false; if (wifi::connected() != w) { w = wifi::connected(); nav.statusChanged(); } }
+  { // HOME in the status bar follows the link and which radio is in use
+    static uint8_t l = 0xFF;
+    const uint8_t now = (uint8_t)homelink::state() | (g_radio.viaLink() ? 0x80 : 0);
+    if (now != l) { l = now; nav.statusChanged(); }
+  }
   {
     static int8_t lv = 0;
     if (s_sigAsked && g_node && g_node->heardAt && (int32_t)(g_node->heardAt - s_sigAsked) > 0) { s_sigAsked = 0; s_sigRise = millis() | 1; }
