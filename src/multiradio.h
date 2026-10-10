@@ -6,6 +6,10 @@
 // The dispatcher already hands over finished on-air packets and takes raw bytes
 // back, so this only decides which of the two carries them.
 //
+// A packet the companion doesn't confirm (refused, or no answer in RESEND_AFTER_MS,
+// or the link went down with it) goes out again on our own radio, so a link that
+// is dying quietly can't swallow it. The mesh drops the copy if both got out.
+//
 // One exception: a packet too big for a companion frame (over 174 bytes) can't go
 // over the link, so the LoRa chip is woken just to send it, then sleeps again.
 //
@@ -21,8 +25,10 @@ class MultiRadio : public mesh::Radio {
 public:
   bool viaLink() const { return _viaLink; }
   bool lastFromLink() const { return _viaLink; }   // one source at a time
+  uint8_t txState() const { return _tx; }          // for the USB "link" report
+  bool loraAsleep() const { return _loraAsleep; }
 
-  struct Counters { uint32_t linkTx = 0, linkRefused = 0, tooBig = 0, linkRx = 0; };
+  struct Counters { uint32_t linkTx = 0, linkRefused = 0, tooBig = 0, linkRx = 0, resent = 0; };
   const Counters& counters() const { return _n; }
 
   // mesh::Radio
@@ -39,12 +45,14 @@ public:
   void setCADEnabled(bool enable) override { lora().setCADEnabled(enable); }
   void resetAGC() override { if (!_viaLink) lora().resetAGC(); }
   bool isInRecvMode() const override { return _tx == TX_NONE && (_viaLink || lora().isInRecvMode()); }
-  bool isReceiving() override { return !_viaLink && lora().isReceiving(); }   // LBT is the companion's job on the link
+  // LBT is the companion's job on the link. A resend of ours on LoRa reads as a busy
+  // channel, so the dispatcher waits for it instead of starting over the top.
+  bool isReceiving() override { return _tx == TX_RESEND || (!_viaLink && lora().isReceiving()); }
   float getLastRSSI() const override { return _viaLink ? _rssi : lora().getLastRSSI(); }
   float getLastSNR() const override { return _viaLink ? _snr : lora().getLastSNR(); }
 
 private:
-  enum Tx : uint8_t { TX_NONE, TX_LORA, TX_LINK };
+  enum Tx : uint8_t { TX_NONE, TX_LORA, TX_LINK, TX_RESEND };
 
   // radio_driver, looked up on use: it's a reference set up in another file's
   // static initialisers, so it can't be bound safely in our constructor.
@@ -57,6 +65,14 @@ private:
   uint32_t _txSeq = 0, _txStart = 0, _txEst = 0;
   float    _snr = 0, _rssi = 0;
   Counters _n;
+
+  // Link sends not yet confirmed by the companion.
+  static constexpr uint8_t UNCONFIRMED_MAX = 8;
+  struct Unconfirmed { uint32_t seq = 0, at = 0; uint8_t len = 0; bool resend = false; uint8_t buf[174]; };
+  Unconfirmed _unc[UNCONFIRMED_MAX];
+
+  void remember(uint32_t seq, const uint8_t* bytes, int len);
+  void checkUnconfirmed();
 
   void sleepLora();
   void wakeLora();

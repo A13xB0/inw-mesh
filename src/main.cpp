@@ -1112,8 +1112,9 @@ static void usbCommands() {
       Serial.printf("[link] via_link=%d companion tx ok=%lu err=%lu rx=%lu cut=%lu connects=%lu drops=%lu rtt=%lums\n",
                     g_radio.viaLink(), (unsigned long)st.txOk, (unsigned long)st.txErr, (unsigned long)st.rx,
                     (unsigned long)st.rxTruncated, (unsigned long)st.connects, (unsigned long)st.drops, (unsigned long)st.rttMs);
-      Serial.printf("[link] radio link_tx=%lu refused=%lu too_big=%lu link_rx=%lu\n", (unsigned long)n.linkTx,
-                    (unsigned long)n.linkRefused, (unsigned long)n.tooBig, (unsigned long)n.linkRx);
+      Serial.printf("[link] radio link_tx=%lu refused=%lu too_big=%lu link_rx=%lu resent_on_lora=%lu tx=%u lora_asleep=%d\n", (unsigned long)n.linkTx,
+                    (unsigned long)n.linkRefused, (unsigned long)n.tooBig, (unsigned long)n.linkRx, (unsigned long)n.resent,
+                    g_radio.txState(), g_radio.loraAsleep());
       continue;
     }
     if (!strcmp(line, "save")) {
@@ -2649,11 +2650,21 @@ void loop() {
   // Wi-Fi parks a minute into the dark on battery, and is back the moment the screen
   // wakes. ui_settings.wifiOn (the user's switch) is left alone; plugged in it stays
   // up, so updates and problem reports still go while it charges.
+  // Not while the home link is up, though: then Wi-Fi is the radio (LoRa is asleep),
+  // and parking it dropped the link a minute into every dark screen and sent the
+  // T-Deck back to joining each time it woke.
   {
     static bool parked = false;
-    static uint32_t darkAt = 0;
+    static uint32_t darkAt = 0, linkUpAt = 0;
     if (dimmer.asleep()) { if (!darkAt) darkAt = millis() | 1; } else darkAt = 0;
-    const bool park = ui_settings.wifiOn && darkAt && (int32_t)(millis() - darkAt) > 60000 && !app::pluggedIn();
+    if (homelink::up()) linkUpAt = millis() | 1;
+    const bool linkInUse = homelink::enabled() && linkUpAt &&
+                           (int32_t)(millis() - linkUpAt) < 60000;   // a reconnect gets a minute
+    const bool park = ui_settings.wifiOn && darkAt && (int32_t)(millis() - darkAt) > 60000 && !app::pluggedIn() &&
+                      !linkInUse;
+    // Kept up for the link: let it doze between beacons while nobody's looking. It
+    // stays joined; packets from the companion wait at the router up to a second.
+    wifi::setDeepSleep(darkAt && linkInUse);
     if (park != parked && !power::saver()) {   // battery saver switches Wi-Fi itself meanwhile
       parked = park;
       wifi::setEnabled(!park && ui_settings.wifiOn, true);   // back in the background: the wake isn't held for it
